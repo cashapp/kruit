@@ -2,7 +2,7 @@ import { WebviewTag } from "electron"
 import TabGroup = require("electron-tabs")
 import * as fs from "fs"
 import * as os from "os"
-import * as client_factory from "./kubernetes/client_factory"
+import * as client_factory from "./kubernetes"
 import * as process from 'process';
 
 function loadPLugins() {

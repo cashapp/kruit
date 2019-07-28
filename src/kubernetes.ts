@@ -16,20 +16,26 @@ declare module "@kubernetes/client-node" {
     export type ApiConstructor<T extends k8s.ApiType> = new (server: string) => T
 }
 
+export function newKubeConfig(): k8s.KubeConfig {
+    const kubeConfig = new k8s.KubeConfig()
+
+    // TODO this should be configured in the main process and passed some how ideally
+    let kubeConfigFile = `${os.homedir()}/.kube/config`
+    if (process.env.KUBECONFIG !== undefined) {
+        kubeConfigFile = process.env.KUBECONFIG
+    }
+
+    kubeConfig.loadFromFile(kubeConfigFile)
+    return kubeConfig
+}
+
 // TODO documentation for this class
 export class KubernetesClientFactory {
 
    public kubeConfig: k8s.KubeConfig
 
     constructor() {
-        this.kubeConfig = new k8s.KubeConfig()
-
-        // TODO this should be configured in the main process and passed some how ideally
-        let kubeConfigFile = `${os.homedir()}/.kube/config`
-        if (process.env.KUBECONFIG !== undefined) {
-          kubeConfigFile = process.env.KUBECONFIG
-        }
-        this.kubeConfig.loadFromFile(kubeConfigFile)
+        this.kubeConfig = newKubeConfig()
     }
 
     public getClient<T extends k8s.ApiType>(apiClientType: k8s.ApiConstructor<T>): T {
