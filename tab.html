@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <link href="node_modules/vis/dist/vis-network.min.css" rel="stylesheet" type="text/css" />
+
+  <style>
+      html, body {
+        height: 100%;
+        margin: 0;
+      }         
+  </style>
+</head>
+<body> 
+    <div id="container" style="height: 100%"></div>
+    <script>      
+        function launchPlugin(modulePath) {
+          // TODO be more defensive here
+          require(modulePath)({})
+        }
+    </script>
+  </body>
+</html>

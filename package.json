@@ -1,0 +1,39 @@
+{
+  "name": "clustermuck",
+  "version": "1.0.0",
+  "description": "",
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc -w",
+    "lint": "tslint -c tslint.json -p tsconfig.json",
+    "start": "npm run build && electron ./dist/main.js"
+  },
+  "main": "dist/index.js",
+  "repository": "https://github.com/electron/electron-quick-start-typescript",
+  "keywords": [
+    "Electron",
+    "quick",
+    "start",
+    "tutorial",
+    "demo",
+    "typescript"
+  ],
+  "author": "GitHub",
+  "license": "CC0-1.0",
+  "devDependencies": {
+    "electron": "^5.0.4",
+    "tslint": "^5.10.0"
+  },
+  "dependencies": {
+    "@kubernetes/client-node": "^0.10.2",
+    "@types/shelljs": "^0.8.5",
+    "@types/vis": "^4.21.17",
+    "@types/yargs": "^13.0.0",
+    "electron-bus": "^0.1.0",
+    "electron-tabs": "^0.9.5",
+    "install": "^0.12.2",
+    "shelljs": "^0.8.3",
+    "vis": "^4.21.0",
+    "yargs": "^13.3.0"
+  }
+}

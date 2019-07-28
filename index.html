@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <link rel="stylesheet" href="node_modules/electron-tabs/electron-tabs.css">
+</head>
+<body style="margin:0">
+
+<div class="etabs-tabgroup">
+    <div class="etabs-tabs"></div>
+    <div class="etabs-buttons"></div>
+</div>
+<div class="etabs-views"></div>
+    <script>        
+        // render contains all the plugin logic
+        require('./dist/renderer.js')
+    </script>
+  </body>
+</html>
+
+
