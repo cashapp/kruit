@@ -1,3 +1,3 @@
 import * as Kubernetes from "@kubernetes/client-node"
 export { Kubernetes }
-export * from "./kubernetes"
+export * from "./kubernetes/client_factory"

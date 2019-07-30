@@ -2,7 +2,7 @@ import { WebviewTag } from "electron"
 import TabGroup = require("electron-tabs")
 import * as fs from "fs"
 import * as os from "os"
-import * as client_factory from "./kubernetes"
+import { KubernetesClientFactory } from "./kubernetes/client_factory"
 import * as process from 'process';
 
 function loadPLugins() {
@@ -16,7 +16,7 @@ function loadPLugins() {
   // TODO need to support an override for plugin dir...
   const base = `${os.homedir()}/.clustermuck/plugins`
   const pluginDirs = fs.readdirSync(base)
-  const clientFactory = new client_factory.KubernetesClientFactory()
+  const clientFactory = new KubernetesClientFactory()
   for (const dir of pluginDirs) {
     const tab = tabGroup.addTab({
       active: true,
