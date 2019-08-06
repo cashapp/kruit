@@ -1,4 +1,4 @@
-import { V1ObjectMeta, KubeConfig, V1Node, V1Pod } from '@kubernetes/client-node';
+import { V1ObjectMeta, KubeConfig, V1Node, V1Pod, V1PodSpec } from '@kubernetes/client-node';
 import { Kubernetes, KubernetesClientFactory, Watcher, newKubeConfig } from 'clustermuck';
 import * as http from "http"
 
@@ -9,23 +9,33 @@ export = (context: any): void => {
     const nodeViewer = new NodeViewer()
 }
 
-class NodeViewer {
+// NodeViewerStateType defines the states that the node viewer can be in
+type NodeViewerStateType = "pods" | "nodes"
+
+enum NodeViewerStates {
+    pods = "pods",
+    nodes = "nodes",
+}
+
+class NodeViewer {    
     kubeConfig = newKubeConfig()
-    visNodes: vis.DataSet<vis.Node>  = new vis.DataSet([])
-    visEdges: vis.DataSet<vis.Edge> = new vis.DataSet([])
+    clusterVisNodeId = this.kubeConfig.currentContext
+    state: "pods" | "nodes" = NodeViewerStates.nodes
+    visNetworkNodes: vis.DataSet<vis.Node>  = new vis.DataSet([])
+    visNetworkEdges: vis.DataSet<vis.Edge> = new vis.DataSet([])
     allNodes = new Map<string, V1Node>()
     allPods = new Map<string, V1Pod>()
     container = document.getElementById("container") as HTMLElement    
-    network: vis.Network = new vis.Network(this.container, { nodes: this.visNodes, edges: this.visEdges}, {})
+    network: vis.Network = new vis.Network(this.container, { nodes: this.visNetworkNodes, edges: this.visNetworkEdges}, {})
+    selectedNetworkNodeId: string = this.clusterVisNodeId
 
     constructor() {
         const self = this
 
-        const clusterVisNodeId = self.kubeConfig.currentContext
         // TODO make this a different colour
         // TODO get the actual name of the cluster somehow
         // create a cluster node to be connected to everything, this makes the network stabilization faster
-        self.visNodes.add({id: clusterVisNodeId, label:clusterVisNodeId, color: "#f7da00"  })
+        self.visNetworkNodes.add({id: self.clusterVisNodeId, label: self.clusterVisNodeId, color: "#f7da00"  })
 
         // setup node watcher
         const nodeWatcher = Watcher.newIWatcher(self.kubeConfig, Kubernetes.V1Node)
@@ -37,9 +47,9 @@ class NodeViewer {
         nodeWatcher.on("ADDED", (node) => {
             const metadata = node["metadata"] as V1ObjectMeta
             const nodeName = metadata.name as string
-            self.visNodes.add({ id: nodeName, label: nodeName,  shape: "box" })
+            self.visNetworkNodes.add({ id: nodeName, label: nodeName,  shape: "box" })
             self.allNodes.set(nodeName, node)
-            self.visEdges.add({ id: nodeName, from: clusterVisNodeId, to: nodeName })
+            self.visNetworkEdges.add({ id: nodeName, from: self.clusterVisNodeId, to: nodeName })
         })
 
         nodeWatcher.on("DELETED", (node) => {
@@ -49,8 +59,8 @@ class NodeViewer {
                 console.log(`unknown node: ${nodeName}`)
                 return
             }
-            self.visNodes.remove(nodeName)
-            self.visEdges.remove(nodeName)
+            self.visNetworkNodes.remove(nodeName)
+            self.visNetworkEdges.remove(nodeName)
             self.allNodes.delete(nodeName)
         })
         
@@ -60,6 +70,12 @@ class NodeViewer {
         podWatcher.on("error", (err) => {
             //TODO better error handling
             console.log(err)
+        })
+
+        podWatcher.on("ADDED", (pod) => {
+            const podName = (pod.metadata as V1ObjectMeta).name as string
+            console.log(`adding ${podName}`)
+            self.allPods.set(podName, pod)
         })
 
         podWatcher.on("ADDED", (pod) => {
@@ -79,7 +95,32 @@ class NodeViewer {
         })
 
         self.network.on("click", (params) => {
-            alert(self.network.getNodeAt(params.pointer.DOM))
+            self.selectedNetworkNodeId = self.network.getNodeAt(params.pointer.DOM) as string
+            switch (self.state) {
+                case NodeViewerStates.nodes:
+                    // switch to pod view if we've selected a node
+                    if (self.selectedNetworkNodeId != self.clusterVisNodeId) {
+                        self.showPodView()
+                    }
+                case NodeViewerStates.pods:
+                    // switch to node view if we've selected centre node
+            }
         })
+    }
+
+    showPodView() {
+        const self = this
+        self.visNetworkEdges.clear()
+        self.visNetworkNodes.clear()
+
+        self.visNetworkNodes.add({id: self.selectedNetworkNodeId, label: self.selectedNetworkNodeId})
+        // selectedNetworkNodeId is holding the node name, so we want all pods on that node
+        const pods = Array.from(self.allPods.values()).filter(pod => (pod.spec as V1PodSpec).nodeName == self.selectedNetworkNodeId)
+        pods.forEach(pod => {
+            const podName = (pod.metadata as V1ObjectMeta).name as string
+            self.visNetworkNodes.add({ id: podName, label: podName, shape: "box" })
+            self.visNetworkEdges.add({ from: self.selectedNetworkNodeId, to: podName })
+        })   
+        self.state = NodeViewerStates.pods             
     }
 }
