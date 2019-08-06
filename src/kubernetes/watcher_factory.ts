@@ -7,7 +7,6 @@ export interface IWatchable {
     "aapiVersion" ?: string
     "kind"?: string
     "metadata"?: k8s.V1ObjectMeta
-
 }
 
 // IWatchableContructor defines the custructor of an IWatchable.
@@ -15,7 +14,7 @@ export type IWatchableContructor = new () => IWatchable
 
 // WatchableEvents defines the names of the events you can expect to listen
 // on with a Watcher<T>.
-export type WatchableEvents = "ADDED" | "MODIFIED" | "DELETED"
+export type WatchableEvents = "ADDED" | "MODIFIED" | "DELETED" | "error"
 
 // IWatcher defines the generic interface of something that "watches" kubernetes resources.
 export interface IWatcher<T extends IWatchable> {
