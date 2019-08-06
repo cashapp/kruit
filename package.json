@@ -21,18 +21,18 @@
   "author": "GitHub",
   "license": "CC0-1.0",
   "devDependencies": {
-    "@types/jest": "^24.0.16",
-    "electron": "^5.0.4",
+    "@types/jest": "^24.0.17",
+    "electron": "^5.0.8",
     "jest": "^24.8.0",
     "ts-jest": "^24.0.2",
-    "tslint": "^5.10.0",
+    "tslint": "^5.18.0",
     "typescript": "^3.5.3"
   },
   "dependencies": {
     "@kubernetes/client-node": "^0.10.2",
     "@types/shelljs": "^0.8.5",
-    "@types/vis": "^4.21.17",
-    "@types/yargs": "^13.0.0",
+    "@types/vis": "^4.21.18",
+    "@types/yargs": "^13.0.2",
     "electron-bus": "^0.1.0",
     "electron-tabs": "^0.9.5",
     "install": "^0.12.2",
