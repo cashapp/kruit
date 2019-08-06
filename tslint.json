@@ -1,11 +1,7 @@
 {
   "extends": "tslint:recommended",
   "rules": {
-    "max-line-length": {
-      "options": [
-        120
-      ]
-    },
+    "max-line-length": false,
     "new-parens": true,
     "no-arg": true,
      "no-bitwise": true,
@@ -13,7 +9,7 @@
     "no-conditional-assignment": true,
     "no-consecutive-blank-lines": false,
     "type-literal-delimiter": false,
-    "semicolon": [true, "never"]
+    "semicolon": [true, "never"],
   },
   "jsRules": {
     "max-line-length": {

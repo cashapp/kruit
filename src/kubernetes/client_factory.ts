@@ -25,6 +25,7 @@ export function newKubeConfig(): k8s.KubeConfig {
         kubeConfigFile = process.env.KUBECONFIG
     }
 
+    // TODO better error handling if the file doesn't exist
     kubeConfig.loadFromFile(kubeConfigFile)
     return kubeConfig
 }

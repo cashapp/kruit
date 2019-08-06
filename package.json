@@ -21,8 +21,12 @@
   "author": "GitHub",
   "license": "CC0-1.0",
   "devDependencies": {
+    "@types/jest": "^24.0.16",
     "electron": "^5.0.4",
-    "tslint": "^5.10.0"
+    "jest": "^24.8.0",
+    "ts-jest": "^24.0.2",
+    "tslint": "^5.10.0",
+    "typescript": "^3.5.3"
   },
   "dependencies": {
     "@kubernetes/client-node": "^0.10.2",
