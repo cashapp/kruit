@@ -22,6 +22,7 @@
   "license": "CC0-1.0",
   "devDependencies": {
     "@types/jest": "^24.0.17",
+    "@types/jquery": "^3.3.31",
     "electron": "^5.0.8",
     "jest": "^24.8.0",
     "ts-jest": "^24.0.2",
@@ -36,6 +37,7 @@
     "electron-bus": "^0.1.0",
     "electron-tabs": "^0.9.5",
     "install": "^0.12.2",
+    "jquery": "^3.4.1",
     "shelljs": "^0.8.3",
     "vis": "^4.21.0",
     "yargs": "^13.3.0"

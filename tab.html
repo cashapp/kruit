@@ -2,18 +2,22 @@
 <html>
 
 <head>
-    <link href="node_modules/vis/dist/vis-network.min.css" rel="stylesheet" type="text/css" />
-
   <style>
       html, body {
         height: 100%;
+        width: 100%;
         margin: 0;
-      }         
+      }
+
+      #container {
+        height: 100%;
+        width: 100%;
+      }
   </style>
 </head>
-<body> 
-    <div id="container" style="height: 100%"></div>
-    <script>      
+<body>
+    <div id="container"></div>
+    <script>
         function launchPlugin(modulePath) {
           // TODO be more defensive here
           require(modulePath)({})
