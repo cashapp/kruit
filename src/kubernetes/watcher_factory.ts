@@ -1,5 +1,7 @@
 import * as k8s from "@kubernetes/client-node"
 import { EventEmitter } from 'events'
+import { V1ObjectMeta } from '@kubernetes/client-node';
+import { removeAllListeners } from "cluster";
 
 
 // IWatchable describes the structure of kubernetes resource classes. Some of those resources can be watched.
@@ -18,12 +20,18 @@ export type WatchableEvents = "ADDED" | "MODIFIED" | "DELETED" | "error"
 
 // IWatcher defines the generic interface of something that "watches" kubernetes resources.
 export interface IWatcher<T extends IWatchable> {
-    on(s: WatchableEvents, listener: (v: T) => void): void
-    emit(s: WatchableEvents, resource: T): void
+    on(event: WatchableEvents, listener: (v: T) => void): void
+    emit(event: WatchableEvents, resource: T): void
+    removeAllWatchableEventListeners(): void
+    getCached() : Map<string, T>
+    
 }
 
 // Watcher provides an EventEmitter which can be used to "watch" Kubernetes resouces easily.
 export class Watcher<T extends IWatchable> extends EventEmitter implements IWatcher<T> {
+
+    // cache holds the currently available resources observed by this watcher keyed by their name
+    cache: Map<string, T> = new Map()
 
     // newIWatcher calls the protected constructore function and "casts" the result as an IWatcher<T> so that the
     // caller can take advantage of the typing provided by
@@ -36,14 +44,29 @@ export class Watcher<T extends IWatchable> extends EventEmitter implements IWatc
     private constructor(kubeConfig: k8s.KubeConfig, watched: IWatchableContructor) {
         // Initialize EventEmitter
         super()
+        
+        const self = this
        
         const watchPath = Watcher.pathFromConstructor(watched)
 
         // setup the watch to emit the appropriate events
         const watch = new k8s.Watch(kubeConfig)
         const res = watch.watch(watchPath, {},
-        (eventType, obj) => {
-            this.emit(eventType, obj)
+            (eventType: WatchableEvents, obj: IWatchable) => {
+                const name = (obj.metadata as V1ObjectMeta).name
+                switch (eventType) {
+                    case "ADDED" || "MODIFIED":
+                        self.cache.set(name, obj as T)
+                        break
+                    case "DELETED":
+                        if (self.cache.has(name)) {
+                            self.cache.delete(name)
+                        } else {
+                            console.log(`unexpected resource: ${name}`)
+                        }
+                        break                      
+                }
+                this.emit(eventType, obj)
         },
         // done callback is called if the watch terminates normally
         (err) => {
@@ -79,6 +102,17 @@ export class Watcher<T extends IWatchable> extends EventEmitter implements IWatc
             renaming += "s"
         }
         return `/${base}/${prefix}/${renaming}`
+    }
+
+    public getCached(): Map<string, T> {
+        return this.cache
+    }
+
+    public removeAllWatchableEventListeners() {
+        this.removeAllListeners("ADDED")
+        this.removeAllListeners("MODIFIED")
+        this.removeAllListeners("DELETED")
+        this.removeAllListeners("error")
     }
 }
 
