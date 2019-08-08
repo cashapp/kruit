@@ -107,6 +107,7 @@ export class Tab extends EventEmitter {
 
     public addText(text: string) {
         this.textArea.value += text
+        this.textArea.scrollTop = this.textArea.scrollHeight
     }
 
     public destroy() {

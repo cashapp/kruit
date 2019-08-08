@@ -24,7 +24,10 @@ export class PodWrapper {
             const headerParams: any = {}
             const reqOpts: request.OptionsWithUri = {
                 method: "GET",
-                qs: {},
+                qs: {
+                    follow: true,
+                    tailLines: 100,
+                },
                 headers: headerParams,
                 uri: url,
                 useQuerystring: true,

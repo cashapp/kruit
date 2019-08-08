@@ -90,7 +90,7 @@ class NodeViewer {
                         const wrappedProd = new PodWrapper(self.kubeConfig, pod!)    
                         wrappedProd.followLogs().then((stream) => {
                             stream.on("data", (line) => {
-                                logTab.addText(line + "\n")
+                                logTab.addText(line + "\n")                                
                                 // TODO automatically scrolling to the bottom here seems
                                 // to cause the ui to freeze momentarially. The textarea should take care of
                                 // its own autoscrolling
