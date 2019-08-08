@@ -9,7 +9,8 @@
     "no-conditional-assignment": true,
     "no-consecutive-blank-lines": false,
     "type-literal-delimiter": false,
-    "semicolon": [true, "never"],
+    "max-classes-per-file": false,
+    "semicolon": [true, "never"]
   },
   "jsRules": {
     "max-line-length": {

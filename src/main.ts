@@ -31,7 +31,8 @@ function createWindow() {
   mainWindow.loadFile(path.join(__dirname, "../index.html"))
 
   // Open the DevTools.
-  mainWindow.webContents.openDevTools();
+  // TODO put this behind a flag instead of a comment
+  //mainWindow.webContents.openDevTools();
 
   // Emitted when the window is closed.
   mainWindow.on("closed", () => {
