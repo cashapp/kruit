@@ -23,7 +23,7 @@
   "devDependencies": {
     "@types/jest": "^24.0.17",
     "@types/jquery": "^3.3.31",
-    "electron": "^5.0.8",
+    "electron": "^5.0.9",
     "jest": "^24.8.0",
     "ts-jest": "^24.0.2",
     "tslint": "^5.18.0",
@@ -31,13 +31,17 @@
   },
   "dependencies": {
     "@kubernetes/client-node": "^0.10.2",
+    "@types/byline": "^4.2.31",
+    "@types/request": "^2.48.2",
     "@types/shelljs": "^0.8.5",
     "@types/vis": "^4.21.18",
     "@types/yargs": "^13.0.2",
+    "byline": "^5.0.0",
     "electron-bus": "^0.1.0",
     "electron-tabs": "^0.9.5",
     "install": "^0.12.2",
     "jquery": "^3.4.1",
+    "request": "^2.88.0",
     "shelljs": "^0.8.3",
     "vis": "^4.21.0",
     "yargs": "^13.3.0"

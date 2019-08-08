@@ -4,12 +4,13 @@
     "max-line-length": false,
     "new-parens": true,
     "no-arg": true,
-     "no-bitwise": true,
+    "no-bitwise": true,
     "object-literal-sort-keys": false,
     "no-conditional-assignment": true,
     "no-consecutive-blank-lines": false,
     "type-literal-delimiter": false,
     "max-classes-per-file": false,
+    "no-console": false,
     "semicolon": [true, "never"]
   },
   "jsRules": {

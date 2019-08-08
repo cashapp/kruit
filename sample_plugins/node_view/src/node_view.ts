@@ -1,9 +1,10 @@
 import { KubeConfig, V1Node, V1ObjectMeta, V1Pod, V1PodSpec } from "@kubernetes/client-node"
-import { IWatcher, Kubernetes, KubernetesClientFactory, newKubeConfig, Tabs, Watcher } from "clustermuck"
+import { IWatcher, Kubernetes, newKubeConfig, PodWrapper, Tabs, Watcher } from "clustermuck"
 import * as http from "http"
 import $ from "jquery"
 
 // TODO there should be type definitions in the near future, add them once they're available
+import { statement } from "@babel/template";
 import { removeAllListeners } from "cluster"
 import * as vis from "vis"
 
@@ -43,7 +44,7 @@ class NodeViewer {
         if (!container) {
             throw new Error("container must be defined and not null")
         }
-        
+
         this.container = container
         const visContainer = $(container).find(".node_view_top").get(0) as HTMLDivElement
 
@@ -81,9 +82,32 @@ class NodeViewer {
                     }
                     break
                 case NodeViewerStates.pods:
-                    // switch to node view if we've selected centre node
-                    self.stopPodView()
-                    self.showNodeView()
+                    // is this a pod? then get the logs and print to a tab
+                    if (self.podWatcher.getCached().has(self.selectedNetworkNodeId)) {
+                        const pod = this.podWatcher.getCached().get(self.selectedNetworkNodeId)
+                        self.tabs.clear()
+                        const logTab = self.tabs.addTab(`${pod!.metadata!.name} logs`)
+                        const wrappedProd = new PodWrapper(self.kubeConfig, pod!)    
+                        wrappedProd.followLogs().then((stream) => {
+                            stream.on("data", (line) => {
+                                logTab.addText(line + "\n")
+                                // TODO automatically scrolling to the bottom here seems
+                                // to cause the ui to freeze momentarially. The textarea should take care of
+                                // its own autoscrolling
+                            })
+
+                            // when the tab goes away the stream should stop writing to it
+                            logTab.on("destroy", () => {
+                                stream.destroy()
+                            })
+                        }).catch((err) => {
+                            console.log(err)
+                        })
+                    } else {
+                        // switch to node view if we've selected centre node
+                        self.stopPodView()
+                        self.showNodeView()
+                    }
                     break
             }
         })

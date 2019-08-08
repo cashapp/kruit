@@ -1,11 +1,13 @@
 import * as $ from "jquery"
 import { tsImportEqualsDeclaration } from "@babel/types";
+import { EventEmitter } from "events";
 
 export class Tabs {
 
     private parentContainer: HTMLDivElement
     private element: HTMLDivElement
     private tabCount = 0
+    private tabs = new Array<Tab>()
 
     constructor(parentContainer: HTMLDivElement) {
         if (!parentContainer) {
@@ -62,21 +64,27 @@ export class Tabs {
 
     public addTab(label: string): Tab {
         const tabCount = this.tabCount++
-        return new Tab(this.element, tabCount, label)
+        const tab =  new Tab(this.element, tabCount, label)
+        this.tabs.push(tab)
+        return tab
     }
 
     public clear() {
         this.tabCount = 0
+        this.tabs.forEach((tab) => {
+            tab.destroy()
+        })
         this.element.innerHTML = ""
     }
 }
 
-export class Tab {
+export class Tab extends EventEmitter {
     parentContainer: HTMLDivElement
     id: number
     textArea: HTMLTextAreaElement
 
     constructor(parentContainer: HTMLDivElement, id: number, label: string) {
+        super()
         if (!parentContainer) {
             throw new Error("container must be defined and not null")
         }
@@ -90,7 +98,7 @@ export class Tab {
                 <label for="tab-input-${id}">${label}</label>
 
                 <div class="content">
-                    <textarea style="width: 100%; height: 100%;" readonly/>
+                    <textarea style="width: 100%; height: 90%;" readonly/>
                 </div>
             </div>
         `)
@@ -99,5 +107,9 @@ export class Tab {
 
     public addText(text: string) {
         this.textArea.value += text
+    }
+
+    public destroy() {
+        this.emit("destroy")
     }
 }
