@@ -137,7 +137,7 @@ class NamespaceViewer {
         const pods = Array.from(self.podWatcher.getCached().values()).filter((pod) => (pod.metadata!.namespace === self.selectedNetworkNodeId))
         let count = 100
         pods.forEach((pod) => {
-            const podName = (pod.metadata as V1ObjectMeta).name as string
+            const podName = pod.metadata!.name!
             self.visNetworkNodes.add({ id: podName, label: podName, shape: "box" })
             self.visNetworkEdges.add({ to: self.selectedNetworkNodeId, from: podName, length: count })
             count += 100
@@ -145,7 +145,7 @@ class NamespaceViewer {
         })
 
         self.podWatcher.on("ADDED", (pod) => {
-            const podName = (pod.metadata as V1ObjectMeta).name as string
+            const podName = pod.metadata!.name!
             self.visNetworkNodes.add({ id: podName, label: podName, shape: "box" })
             self.visNetworkEdges.add({ to: self.selectedNetworkNodeId, from: podName })
             self.visNetwork.redraw()
@@ -154,7 +154,7 @@ class NamespaceViewer {
 
         // TODO change colours based on health
         self.podWatcher.on("MODIFIED", (pod) => {
-            const podName = (pod.metadata as V1ObjectMeta).name as string
+            const podName = pod.metadata!.name!
             console.log(`modified ${podName}`)
         })
 
@@ -189,7 +189,7 @@ class NamespaceViewer {
         // selectedNetworkNodeId is holding the node name, so we want all pods on that node
         const namespaces = Array.from(self.namespaceWatcher.getCached().values())
         namespaces.forEach((node) => {
-            const namespaceName = (node.metadata as V1ObjectMeta).name as string
+            const namespaceName = node.metadata!.name!
             self.visNetworkNodes.add({ id: namespaceName, label: namespaceName, shape: "box" })
             self.visNetworkEdges.add({ from: self.clusterVisNodeId, to: namespaceName })
             self.visNetwork.redraw()
@@ -197,8 +197,7 @@ class NamespaceViewer {
         })
 
         self.namespaceWatcher.on("ADDED", (node) => {
-            const metadata = node.metadata as V1ObjectMeta
-            const nodeName = metadata.name as string
+            const nodeName = node.metadata!.name!
             self.visNetworkNodes.add({ id: nodeName, label: nodeName,  shape: "box" })
             self.visNetworkEdges.add({ from: self.clusterVisNodeId, to: nodeName })
             self.visNetwork.redraw()
@@ -206,14 +205,12 @@ class NamespaceViewer {
 
         // TODO change colour based on status
         self.namespaceWatcher.on("MODIFIED", (node) => {
-            const metadata = node.metadata as V1ObjectMeta
-            const nodeName = metadata.name as string
+            const nodeName = node.metadata!.name!
             console.log(`modified ${nodeName}`)
         })
 
         self.namespaceWatcher.on("DELETED", (node) => {
-            const metadata = node.metadata as V1ObjectMeta
-            const nodeName = metadata.name as string
+            const nodeName = node.metadata!.name!
             self.visNetworkNodes.remove(nodeName)
             self.visNetworkEdges.remove(nodeName)
             self.visNetwork.redraw()
