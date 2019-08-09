@@ -28,7 +28,6 @@ function loadPLugins() {
       },
     })
 
-
     const webview: WebviewTag = $("webview").get(tabCount++) as WebviewTag
     webview.addEventListener("dom-ready", () => {
       webview.openDevTools()
