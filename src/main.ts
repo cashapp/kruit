@@ -32,7 +32,7 @@ function createWindow() {
 
   // Open the DevTools.
   // TODO put this behind a flag instead of a comment
-  //mainWindow.webContents.openDevTools();
+  //mainWindow.webContents.openDevTools()
 
   // Emitted when the window is closed.
   mainWindow.on("closed", () => {

@@ -1,0 +1,20 @@
+{
+  "name": "namespace_view",
+  "version": "1.0.0",
+  "description": "",
+  "main": "dist/namespace_view.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/node": "^12.6.8",
+    "typescript": "^3.5.3"
+  },
+  "dependencies": {
+    "@types/vis": "^4.21.18",
+    "clustermuck": "file:../..",
+    "vis-network": "^5.0.0"
+  }
+}
