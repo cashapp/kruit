@@ -1,6 +1,5 @@
+import { EventEmitter } from "events"
 import * as $ from "jquery"
-import { tsImportEqualsDeclaration } from "@babel/types";
-import { EventEmitter } from "events";
 
 export class Tabs {
 
@@ -69,7 +68,7 @@ export class Tabs {
         return tab
     }
 
-    public clear() {
+    public destroy() {
         this.tabCount = 0
         this.tabs.forEach((tab) => {
             tab.destroy()
@@ -79,9 +78,9 @@ export class Tabs {
 }
 
 export class Tab extends EventEmitter {
-    parentContainer: HTMLDivElement
-    id: number
-    textArea: HTMLTextAreaElement
+    private id: number
+    private textArea: HTMLTextAreaElement
+    private parentContainer: HTMLDivElement
 
     constructor(parentContainer: HTMLDivElement, id: number, label: string) {
         super()

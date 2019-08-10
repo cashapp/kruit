@@ -1,7 +1,7 @@
 import * as k8s from "@kubernetes/client-node"
-import { EventEmitter } from 'events'
 import { V1ObjectMeta } from '@kubernetes/client-node';
-import { removeAllListeners } from "cluster";
+import { removeAllListeners, removeListener } from "cluster";
+import { EventEmitter } from 'events'
 
 
 // IWatchable describes the structure of kubernetes resource classes. Some of those resources can be watched.
@@ -23,30 +23,54 @@ export interface IWatcher<T extends IWatchable> {
     on(event: WatchableEvents, listener: (v: T) => void): void
     emit(event: WatchableEvents, resource: T): void
     removeAllWatchableEventListeners(): void
-    getCached() : Map<string, T>
-    
+    getCached(): Map<string, T>
+    removeListener(event: WatchableEvents, listener: (resource: T) => void): void
 }
 
 // Watcher provides an EventEmitter which can be used to "watch" Kubernetes resouces easily.
 export class Watcher<T extends IWatchable> extends EventEmitter implements IWatcher<T> {
-
-    // cache holds the currently available resources observed by this watcher keyed by their name
-    cache: Map<string, T> = new Map()
 
     // newIWatcher calls the protected constructore function and "casts" the result as an IWatcher<T> so that the
     // caller can take advantage of the typing provided by
     public static newIWatcher<T extends IWatchable>(kubeConfig: k8s.KubeConfig, watched: new () => T): IWatcher<T> {
         return new Watcher<T>(kubeConfig, (watched as unknown) as IWatchableContructor)
     }
-    
+
+    public static pathFromConstructor(func: IWatchableContructor): string {
+        if (!apiBaseLookup.has(func)) {
+            throw new Error(`${func.name} is not watchable`)
+        }
+
+        const base = apiBaseLookup.get(func)        
+        const name = func.name        
+        const matches = name.match(this.versionRegex)
+        if (matches.length === 0)  {
+            throw new Error("could not match prefix of resource (V1 V2Beta1 etc)")
+        }
+
+        const prefix = matches[0].toLowerCase()
+        let renaming = name.substr(prefix.length).toLowerCase()
+
+        // if the last character isn't an 's', then we pluralize it
+        if (renaming[renaming.length] !== "s") {
+            renaming += "s"
+        }
+        return `/${base}/${prefix}/${renaming}`
+    }
+
+    private static versionRegex = /(V\d+((Alpha|Beta)\d*)?)/
+
+    // cache holds the currently available resources observed by this watcher keyed by their name
+    private cache: Map<string, T> = new Map()
+
     // Create a new Watcher<T>. You can "cast" the object to IWatcher<T> in order to get typing information
     // for "on" and "emit".
     private constructor(kubeConfig: k8s.KubeConfig, watched: IWatchableContructor) {
         // Initialize EventEmitter
         super()
-        
+
         const self = this
-       
+
         const watchPath = Watcher.pathFromConstructor(watched)
 
         // setup the watch to emit the appropriate events
@@ -78,30 +102,6 @@ export class Watcher<T extends IWatchable> extends EventEmitter implements IWatc
 
         // TODO error handling around the rest request failing
         console.log(res)
-    }
-
-    private static versionRegex = /(V\d+((Alpha|Beta)\d*)?)/
-
-    public static pathFromConstructor(func: IWatchableContructor): string {
-        if (!apiBaseLookup.has(func)) {
-            throw new Error(`${func.name} is not watchable`)
-        }
-
-        const base = apiBaseLookup.get(func)        
-        const name = func.name        
-        const matches = name.match(this.versionRegex)
-        if (matches.length === 0)  {
-            throw new Error("could not match prefix of resource (V1 V2Beta1 etc)")
-        }
-         
-        const prefix = matches[0].toLowerCase()
-        let renaming = name.substr(prefix.length).toLowerCase()
-
-        // if the last character isn't an 's', then we pluralize it
-        if (renaming[renaming.length] !== "s") {
-            renaming += "s"
-        }
-        return `/${base}/${prefix}/${renaming}`
     }
 
     public getCached(): Map<string, T> {
