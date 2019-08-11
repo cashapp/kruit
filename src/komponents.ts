@@ -57,7 +57,7 @@ export class WatcherView<T> extends Komponent {
             resources.forEach((resource) => {
                 const nodeID = this.identifier(resource) as string
                 this.visNetworkNodes.add({ id: nodeID, label: nodeID, shape: "box" })
-                this.visNetworkEdges.add({ to: centerNodeId, from: nodeID })
+                this.visNetworkEdges.add({ to: centerNodeId, from: nodeID, length: 50 + Math.floor(Math.random() * Math.floor(300)) })
                 this.visNetwork.redraw()
             })
 
