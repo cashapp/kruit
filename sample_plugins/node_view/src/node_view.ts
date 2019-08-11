@@ -10,6 +10,7 @@ export = (): void => {
         <div class="node_view_top" style="height: 50%"/>
         <div class="node_view_bottom tabs" style="height: 50%"/>
     `)
+    const nodeViewer = new NodeViewer($("#container").get(0) as HTMLDivElement)
 }
 
 class NodeViewer {
