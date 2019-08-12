@@ -1,5 +1,5 @@
 import { V1Node, V1Pod } from '@kubernetes/client-node';
-import { IWatcher, Kubernetes, newKubeConfig, PodView, Watcher, WatcherView } from "clustermuck"
+import { IWatcher, Kubernetes, newKubeConfig, PodView, Watcher, WatcherView, WatchableEvents } from "clustermuck"
 import $ from "jquery"
 
 
@@ -41,7 +41,15 @@ class NodeViewer {
 
     public showPodWatcherView(node: V1Node) {
         const podWatcherView = new WatcherView<V1Pod>(this.topContainer, this.clusterVisNodeId, this.podWatcher,
-            (pod) => pod.spec!.nodeName === node.metadata!.name , (pod) => pod.metadata!.name!)
+            (pod) => pod.spec!.nodeName === node.metadata!.name,
+            (pod) => pod.metadata!.name!,
+            (event: WatchableEvents, pod: V1Pod, visNode: vis.Node, visEdge: vis.Edge) => {
+                switch (event) {
+                    case "ADDED":
+                    case "MODIFIED":
+                        console.log(pod.status)
+                }
+            })
 
         podWatcherView.on("back", () => {
             if (this.podView) {
@@ -63,12 +71,15 @@ class NodeViewer {
     }
 
     private showNodeView() {
-        const nodeWatcherVIew = new WatcherView<V1Node>(this.topContainer, this.clusterVisNodeId, this.nodeWatcher,
-            () => true, (namespace: V1Node) => namespace.metadata!.name!)
+        const nodeWatcherView = new WatcherView<V1Node>(this.topContainer, this.clusterVisNodeId, this.nodeWatcher,
+            () => true, (namespace: V1Node) => namespace.metadata!.name!,
+            (event: WatchableEvents, node: V1Node, visNode: vis.Node, visEdge: vis.Edge) => {
+                console.log(node)
+            })
 
-        nodeWatcherVIew.on("selected", (namespace) => {
+        nodeWatcherView.on("selected", (namespace) => {
             this.nodeWatcher.removeAllWatchableEventListeners()
-            nodeWatcherVIew.destroy()
+            nodeWatcherView.destroy()
             this.showPodWatcherView(namespace)
         })
     }

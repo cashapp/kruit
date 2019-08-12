@@ -88,7 +88,7 @@ export class Watcher<T extends IWatchable> extends EventEmitter implements IWatc
                         } else {
                             console.log(`unexpected resource: ${name}`)
                         }
-                        break                      
+                        break
                 }
                 this.emit(eventType, obj)
         },

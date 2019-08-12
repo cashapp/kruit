@@ -2,7 +2,7 @@ import { KubeConfig, V1Pod, V1Namespace, V1Node } from '@kubernetes/client-node'
 import { EventEmitter } from "events";
 import * as vis from "vis"
 import { PodWrapper } from "./kubernetes/pod_wrapper"
-import { IWatcher } from "./kubernetes/watcher";
+import { IWatcher, WatchableEvents } from './kubernetes/watcher';
 import { Tabs } from "./widgets"
 
 export abstract class Komponent extends EventEmitter {}
@@ -36,6 +36,7 @@ export class PodView extends Komponent {
 
 export type Filter<T> = (resource: T) => boolean
 export type Indentifer<T> = (resource: T) => string
+export type OnChange<T> = (event: WatchableEvents, resource: T, visNode: vis.Node, visEdge: vis.Edge) => void
 
 export class WatcherView<T> extends Komponent {
     private rootColour = "#f7da00"
@@ -48,7 +49,9 @@ export class WatcherView<T> extends Komponent {
     })
 
     constructor(private container: HTMLDivElement, private centerNodeId: string,
-                private watcher: IWatcher<T>, private filter: Filter<T>, private identifier: Indentifer<T>) {
+                private watcher: IWatcher<T>, private filter: Filter<T>,
+                private identifier: Indentifer<T>,
+                private OnChangeHook: OnChange<T>) {
             super()
             this.visNetworkNodes.add({id: centerNodeId, label: centerNodeId, color: this.rootColour })
             this.visNetwork.redraw()
@@ -56,8 +59,11 @@ export class WatcherView<T> extends Komponent {
             const resources = Array.from(this.watcher.getCached().values()).filter(filter)
             resources.forEach((resource) => {
                 const nodeID = this.identifier(resource) as string
-                this.visNetworkNodes.add({ id: nodeID, label: nodeID, shape: "box" })
-                this.visNetworkEdges.add({ to: centerNodeId, from: nodeID, length: 50 + Math.floor(Math.random() * Math.floor(300)) })
+                const visNode: vis.Node = { id: nodeID, label: nodeID, shape: "box" }
+                const visEdge: vis.Edge = { to: centerNodeId, from: nodeID, length: 50 + Math.floor(Math.random() * Math.floor(300)) }
+                this.OnChangeHook("ADDED", resource, visNode, visEdge)
+                this.visNetworkNodes.add(visNode)
+                this.visNetworkEdges.add(visEdge)
                 this.visNetwork.redraw()
             })
 
@@ -92,22 +98,27 @@ export class WatcherView<T> extends Komponent {
 
     private onAdded(resource: T) {
         const nodeID = this.identifier(resource) as string
-        this.visNetworkNodes.add({ id: nodeID, label: nodeID, shape: "box" })
-        this.visNetworkEdges.add({ to: this.centerNodeId, from: nodeID })
+        const visNode: vis.Node = { id: nodeID, label: nodeID, shape: "box" }
+        const visEdge: vis.Edge = { to: this.centerNodeId, from: nodeID }
+        this.OnChangeHook("ADDED", resource, visNode, visEdge)
+        this.visNetworkNodes.add(visNode)
+        this.visNetworkEdges.add(visEdge)
         this.visNetwork.redraw()
     }
 
     private onModified(resource: T) {
         const nodeId = this.identifier(resource)
-        // TODO change colours etc
+        const visNode = this.visNetworkNodes.get(nodeId)
+        const visEdge = this.visNetworkEdges.get(nodeId)
+        this.OnChangeHook("MODIFIED", resource, visNode, visEdge)
+        this.visNetwork.redraw()
     }
 
     private onDeleted(resource: T) {
         const nodeId = this.identifier(resource)
         this.visNetworkNodes.remove(nodeId)
         this.visNetworkEdges.remove(nodeId)
+        this.OnChangeHook("DELETED", resource, null, null)
         this.visNetwork.redraw()
     }
-
-
 }
