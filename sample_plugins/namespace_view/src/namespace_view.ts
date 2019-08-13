@@ -1,5 +1,5 @@
 import { KubeConfig, V1Namespace, V1ObjectMeta, V1Pod, V1PodSpec, V1Node } from "@kubernetes/client-node"
-import { IWatcher, Kubernetes, newKubeConfig, PodView, PodWrapper, Tabs, Watcher, WatcherView, WatchableEvents } from "clustermuck"
+import { IWatcher, Kubernetes, newKubeConfig, PodView, PodWrapper, Tabs, Watcher, WatcherView, WatchableEvents, newDefaultPodWatcherView } from "clustermuck"
 import $ from "jquery"
 
 // This launches the plugin
@@ -39,16 +39,11 @@ class NamespaceViewer {
     }
 
     public showPodWatcherView(namespace: V1Namespace) {
-        const podWatcherView = new WatcherView<V1Pod>(this.topContainer, this.clusterVisNodeId, this.podWatcher,
-            (pod) => pod.metadata!.namespace === namespace.metadata!.name,
-            (pod) => pod.metadata!.name!,
-            (event: WatchableEvents, pod: V1Pod, visNode: vis.Node, visEdge: vis.Edge) => {
-                switch (event) {
-                    case "ADDED":
-                    case "MODIFIED":
-                        console.log(pod.status)
-                }
-            })
+        const podWatcherView = newDefaultPodWatcherView(
+            this.topContainer,
+            this.clusterVisNodeId,
+            this.podWatcher,
+            (pod) => pod.metadata!.namespace === namespace.metadata!.name)
 
         podWatcherView.on("back", () => {
             if (this.podView) {

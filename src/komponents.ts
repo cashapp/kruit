@@ -49,7 +49,8 @@ export class WatcherView<T> extends Komponent {
     })
 
     constructor(private container: HTMLDivElement, private centerNodeId: string,
-                private watcher: IWatcher<T>, private filter: Filter<T>,
+                private watcher: IWatcher<T>,
+                private filter: Filter<T>,
                 private identifier: Indentifer<T>,
                 private OnChangeHook: OnChange<T>) {
             super()
@@ -121,4 +122,31 @@ export class WatcherView<T> extends Komponent {
         this.OnChangeHook("DELETED", resource, null, null)
         this.visNetwork.redraw()
     }
+}
+
+// newDefaultPodWatcherView returns 
+export function newDefaultPodWatcherView(
+    container: HTMLDivElement,
+    centerNodeId: string,
+    watcher: IWatcher<V1Pod>,
+    filter: Filter<V1Pod>): WatcherView<V1Pod> {
+    return new WatcherView<V1Pod>(container, centerNodeId, watcher, filter,
+        (pod) => pod.metadata!.name!,
+        (event: WatchableEvents, pod: V1Pod, visNode: vis.Node, visEdge: vis.Edge) => {
+            console.log(event)
+            switch (event) {
+                case "ADDED":
+                case "MODIFIED":
+                    switch(pod.status!.phase) {
+                        case "Running" || "Succeeded":
+                            visNode.color = "#008000"
+                            break
+                        case "Pending":
+                            visNode.color = "#FFFF00"
+                            break
+                        default:
+                            visNode.color = "#FF0000"
+                    }
+            }
+        })
 }

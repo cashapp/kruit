@@ -1,5 +1,5 @@
 import { V1Node, V1Pod } from '@kubernetes/client-node';
-import { IWatcher, Kubernetes, newKubeConfig, PodView, Watcher, WatcherView, WatchableEvents } from "clustermuck"
+import { IWatcher, Kubernetes, newKubeConfig, PodView, Watcher, WatcherView, WatchableEvents, newDefaultPodWatcherView } from "clustermuck"
 import $ from "jquery"
 
 
@@ -40,16 +40,11 @@ class NodeViewer {
     }
 
     public showPodWatcherView(node: V1Node) {
-        const podWatcherView = new WatcherView<V1Pod>(this.topContainer, this.clusterVisNodeId, this.podWatcher,
-            (pod) => pod.spec!.nodeName === node.metadata!.name,
-            (pod) => pod.metadata!.name!,
-            (event: WatchableEvents, pod: V1Pod, visNode: vis.Node, visEdge: vis.Edge) => {
-                switch (event) {
-                    case "ADDED":
-                    case "MODIFIED":
-                        console.log(pod.status)
-                }
-            })
+        const podWatcherView = newDefaultPodWatcherView(
+            this.topContainer,
+            this.clusterVisNodeId,
+            this.podWatcher,
+            (pod) => pod.spec!.nodeName === node.metadata!.name)
 
         podWatcherView.on("back", () => {
             if (this.podView) {
