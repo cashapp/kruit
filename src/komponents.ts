@@ -124,20 +124,15 @@ export class WatcherView<T> extends Komponent {
     }
 }
 
-// newDefaultPodWatcherView returns 
-export function newDefaultPodWatcherView(
-    container: HTMLDivElement,
-    centerNodeId: string,
-    watcher: IWatcher<V1Pod>,
-    filter: Filter<V1Pod>): WatcherView<V1Pod> {
-    return new WatcherView<V1Pod>(container, centerNodeId, watcher, filter,
-        (pod) => pod.metadata!.name!,
-        (event: WatchableEvents, pod: V1Pod, visNode: vis.Node, visEdge: vis.Edge) => {
+export class PodWatcherView extends WatcherView<V1Pod> {
+    constructor(container: HTMLDivElement, centerNodeId: string, watcher: IWatcher<V1Pod>, filter: Filter<V1Pod>) {
+        const identifier = (pod: V1Pod) => pod.metadata!.name!
+        const onChange = (event: WatchableEvents, pod: V1Pod, visNode: vis.Node, visEdge: vis.Edge) => {
             console.log(event)
             switch (event) {
                 case "ADDED":
                 case "MODIFIED":
-                    switch(pod.status!.phase) {
+                    switch (pod.status!.phase) {
                         case "Running" || "Succeeded":
                             visNode.color = "#008000"
                             break
@@ -148,5 +143,7 @@ export function newDefaultPodWatcherView(
                             visNode.color = "#FF0000"
                     }
             }
-        })
+        }
+        super(container, centerNodeId, watcher, filter, identifier, onChange)
+    }
 }

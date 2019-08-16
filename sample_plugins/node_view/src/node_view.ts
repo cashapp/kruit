@@ -1,5 +1,5 @@
-import { V1Node, V1Pod } from '@kubernetes/client-node';
-import { IWatcher, Kubernetes, newKubeConfig, PodView, Watcher, WatcherView, WatchableEvents, newDefaultPodWatcherView } from "clustermuck"
+import { V1Node, V1Pod } from "@kubernetes/client-node"
+import { IWatcher, Kubernetes, newKubeConfig, PodView, PodWatcherView, WatchableEvents, Watcher, WatcherView } from "clustermuck"
 import $ from "jquery"
 
 
@@ -40,7 +40,7 @@ class NodeViewer {
     }
 
     public showPodWatcherView(node: V1Node) {
-        const podWatcherView = newDefaultPodWatcherView(
+        const podWatcherView = new PodWatcherView(
             this.topContainer,
             this.clusterVisNodeId,
             this.podWatcher,
