@@ -1,8 +1,8 @@
-import { KubeConfig, V1Pod, V1Namespace, V1Node } from '@kubernetes/client-node';
-import { EventEmitter } from "events";
+import { KubeConfig, V1Pod } from "@kubernetes/client-node"
+import { EventEmitter } from "events"
 import * as vis from "vis"
 import { PodWrapper } from "./kubernetes/pod_wrapper"
-import { IWatcher, WatchableEvents } from './kubernetes/watcher';
+import { IWatcher, WatchableEvents } from "./kubernetes/watcher"
 import { Tabs } from "./widgets"
 
 export abstract class Komponent extends EventEmitter {}
