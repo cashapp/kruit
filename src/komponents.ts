@@ -1,4 +1,4 @@
-import { KubeConfig, V1Pod } from "@kubernetes/client-node"
+import { KubeConfig, V1Container, V1Pod } from "@kubernetes/client-node"
 import { EventEmitter } from "events"
 import * as vis from "vis"
 import { PodWrapper } from "./kubernetes/pod_wrapper"
@@ -37,12 +37,18 @@ export class PodView extends Komponent {
 export type Filter<T> = (resource: T) => boolean
 export type Indentifer<T> = (resource: T) => string
 export type OnChange<T> = (event: WatchableEvents, resource: T, visNode: vis.Node, visEdge: vis.Edge) => void
+export type WatcherViewEvent = "selected" | "back"
+
+export interface IWatcherView {
+    on(event: "selected", listener: (pod: V1Pod) => void): void
+    on(event: "back", listener: () => void): void
+}
 
 export class WatcherView<T> extends Komponent {
-    private rootColour = "#f7da00"
-    private visNetworkNodes: vis.DataSet<vis.Node>  = new vis.DataSet([])
-    private visNetworkEdges: vis.DataSet<vis.Edge> = new vis.DataSet([])
-    private visNetwork = new vis.Network(this.container, { nodes: this.visNetworkNodes, edges: this.visNetworkEdges}, {
+    protected rootColour = "#f7da00"
+    protected visNetworkNodes: vis.DataSet<vis.Node>  = new vis.DataSet([])
+    protected visNetworkEdges: vis.DataSet<vis.Edge> = new vis.DataSet([])
+    protected visNetwork = new vis.Network(this.container, { nodes: this.visNetworkNodes, edges: this.visNetworkEdges}, {
         layout: {
             improvedLayout: true,
         },
@@ -125,9 +131,10 @@ export class WatcherView<T> extends Komponent {
 }
 
 export class PodWatcherView extends WatcherView<V1Pod> {
-    constructor(container: HTMLDivElement, centerNodeId: string, watcher: IWatcher<V1Pod>, filter: Filter<V1Pod>) {
-        const identifier = (pod: V1Pod) => pod.metadata!.name!
-        const onChange = (event: WatchableEvents, pod: V1Pod, visNode: vis.Node, visEdge: vis.Edge) => {
+    private previouslySelectedNodeId: string = null
+    private previouslySelectedChildrenNodeIds: string[] = null
+    constructor(containingDiv: HTMLDivElement, centerNodeId: string, watcher: IWatcher<V1Pod>, filter: Filter<V1Pod>) {
+        super(containingDiv, centerNodeId, watcher, filter, (pod: V1Pod) => pod.metadata!.name!, (event: WatchableEvents, pod: V1Pod, visNode: vis.Node, visEdge: vis.Edge) => {
             console.log(event)
             switch (event) {
                 case "ADDED":
@@ -143,7 +150,28 @@ export class PodWatcherView extends WatcherView<V1Pod> {
                             visNode.color = "#FF0000"
                     }
             }
-        }
-        super(container, centerNodeId, watcher, filter, identifier, onChange)
+        })
+        const self = this as IWatcherView
+        self.on("selected", (pod: V1Pod) => {
+            const podNodeId = pod.metadata.name
+            if (this.previouslySelectedNodeId !== null) {
+                this.previouslySelectedChildrenNodeIds.forEach((containerNodeId) => {
+                    this.visNetworkEdges.remove(containerNodeId)
+                    this.visNetworkNodes.remove(containerNodeId)
+                    this.visNetwork.redraw()
+                })
+            }
+            this.previouslySelectedNodeId = podNodeId
+            this.previouslySelectedChildrenNodeIds = []
+            pod.spec.containers.forEach((container: V1Container) => {
+                const containerName = container.name
+                const containerNodeId = pod.metadata.name + "_" + containerName
+                this.visNetworkNodes.add({ id: containerNodeId , label: containerName, shape: "box" })
+                this.visNetworkEdges.add({ id: containerNodeId, to: podNodeId, from: containerNodeId , length: 50 + Math.floor(100)})
+                this.previouslySelectedChildrenNodeIds.push(containerNodeId)
+                this.visNetwork.redraw()
+            })
+
+        })
     }
 }
