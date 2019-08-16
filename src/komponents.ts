@@ -61,7 +61,7 @@ export class WatcherView<T> extends Komponent {
             resources.forEach((resource) => {
                 const nodeID = this.identifier(resource) as string
                 const visNode: vis.Node = { id: nodeID, label: nodeID, shape: "box" }
-                const visEdge: vis.Edge = { to: centerNodeId, from: nodeID, length: 50 + Math.floor(Math.random() * Math.floor(300)) }
+                const visEdge: vis.Edge = { to: centerNodeId, from: nodeID, length: 100 + Math.floor(Math.random() * Math.floor(400)) }
                 this.OnChangeHook("ADDED", resource, visNode, visEdge)
                 this.visNetworkNodes.add(visNode)
                 this.visNetworkEdges.add(visEdge)
