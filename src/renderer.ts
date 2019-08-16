@@ -3,7 +3,6 @@ import TabGroup = require("electron-tabs")
 import * as fs from "fs"
 import * as $ from "jquery"
 import * as os from "os"
-import * as process from 'process';
 import { KubernetesClientFactory } from "./kubernetes/client_factory"
 
 async function loadPLugins() {
@@ -38,7 +37,7 @@ async function loadPLugins() {
       })
 
       // NB(gflarity) wait a second here so that the UI can settle for this tab. This is is a
-      // hack for for the old version of vis network the samples are currently using and it 
+      // hack for for the old version of vis network the samples are currently using and it
       // should be removed later.
       await new Promise((resolve) => {
         setTimeout(resolve, 1000)

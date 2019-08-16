@@ -1,7 +1,6 @@
 import * as k8s from "@kubernetes/client-node"
-import { V1ObjectMeta } from '@kubernetes/client-node';
-import { removeAllListeners, removeListener } from "cluster";
-import { EventEmitter } from 'events'
+import { V1ObjectMeta } from "@kubernetes/client-node"
+import { EventEmitter } from "events"
 
 
 // IWatchable describes the structure of kubernetes resource classes. Some of those resources can be watched.
@@ -41,8 +40,8 @@ export class Watcher<T extends IWatchable> extends EventEmitter implements IWatc
             throw new Error(`${func.name} is not watchable`)
         }
 
-        const base = apiBaseLookup.get(func)        
-        const name = func.name        
+        const base = apiBaseLookup.get(func)
+        const name = func.name
         const matches = name.match(this.versionRegex)
         if (matches.length === 0)  {
             throw new Error("could not match prefix of resource (V1 V2Beta1 etc)")

@@ -1,7 +1,7 @@
-import { KubeConfig, V1Pod } from '@kubernetes/client-node';
+import { KubeConfig, V1Pod } from "@kubernetes/client-node"
 import * as byline from "byline"
 import * as request from "request"
-import { Readable, Duplex, Transform } from 'stream';
+import { Readable } from "stream"
 
 export class PodWrapper {
     public kubeConfig: KubeConfig

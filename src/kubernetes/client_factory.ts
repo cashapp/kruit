@@ -10,7 +10,7 @@ import * as vis from "vis"
 import * as shelljs from "shelljs"
 shelljs.config.execPath = "/usr/local/bin/node"
 
-// TODO(gflarity) ApiContructor is defined inside @kubernetes/client-node but not exported. Ask upstream to 
+// TODO(gflarity) ApiContructor is defined inside @kubernetes/client-node but not exported. Ask upstream to
 // just export this?
 declare module "@kubernetes/client-node" {
     export type ApiConstructor<T extends k8s.ApiType> = new (server: string) => T
