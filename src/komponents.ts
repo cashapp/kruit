@@ -2,7 +2,7 @@ import { KubeConfig, V1Container, V1Pod } from "@kubernetes/client-node"
 import { EventEmitter } from "events"
 import * as vis from "vis"
 import { PodWrapper } from "./kubernetes/pod_wrapper"
-import { IWatcher, WatchableEvents } from "./kubernetes/watcher"
+import { IWatchable, IWatcher, WatchableEvents } from "./kubernetes/watcher"
 import { Tabs } from "./widgets"
 
 export abstract class Komponent extends EventEmitter {}
@@ -39,12 +39,12 @@ export type Indentifer<T> = (resource: T) => string
 export type OnChange<T> = (event: WatchableEvents, resource: T, visNode: vis.Node, visEdge: vis.Edge) => void
 export type WatcherViewEvent = "selected" | "back"
 
-export interface IWatcherView {
-    on(event: "selected", listener: (pod: V1Pod) => void): void
+export interface IWatcherView<T> {
+    on(event: "selected", listener: (resource: T) => void): void
     on(event: "back", listener: () => void): void
 }
 
-export class WatcherView<T> extends Komponent {
+export class WatcherView<T extends IWatchable> extends Komponent {
     protected rootColour = "#f7da00"
     protected visNetworkNodes: vis.DataSet<vis.Node>  = new vis.DataSet([])
     protected visNetworkEdges: vis.DataSet<vis.Edge> = new vis.DataSet([])
@@ -91,6 +91,7 @@ export class WatcherView<T> extends Komponent {
         this.removeAllListeners()
     }
 
+
     private registerListeners() {
         this.watcher.on("ADDED", this.onAdded.bind(this))
         this.watcher.on("MODIFIED", this.onModified.bind(this))
@@ -129,7 +130,6 @@ export class WatcherView<T> extends Komponent {
         this.visNetwork.redraw()
     }
 }
-
 export class PodWatcherView extends WatcherView<V1Pod> {
     private previouslySelectedNodeId: string = null
     private previouslySelectedChildrenNodeIds: string[] = null
@@ -151,7 +151,7 @@ export class PodWatcherView extends WatcherView<V1Pod> {
                     }
             }
         })
-        const self = this as IWatcherView
+        const self = this as IWatcherView<V1Pod>
         self.on("selected", (pod: V1Pod) => {
             const podNodeId = pod.metadata.name
             if (this.previouslySelectedNodeId !== null) {
