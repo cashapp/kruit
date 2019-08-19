@@ -76,7 +76,7 @@ export class Watcher<T extends IWatchable> extends EventEmitter implements IWatc
         const watch = new k8s.Watch(kubeConfig)
         const res = watch.watch(watchPath, {},
             (eventType: WatchableEvents, obj: IWatchable) => {
-                const name = (obj.metadata as V1ObjectMeta).name
+                const name = obj.metadata!.name
                 switch (eventType) {
                     case "ADDED" || "MODIFIED":
                         self.cache.set(name, obj as T)
