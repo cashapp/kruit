@@ -68,9 +68,7 @@ class NodeViewer {
     private showNodeView() {
         const nodeWatcherView = new WatcherView<V1Node>(this.topContainer, this.clusterVisNodeId, this.nodeWatcher,
             () => true, (namespace: V1Node) => namespace.metadata!.name!,
-            (event: WatchableEvents, node: V1Node, visNode: vis.Node, visEdge: vis.Edge) => {
-                console.log(node)
-            })
+            (event: WatchableEvents, node: V1Node, visNode: vis.Node, visEdge: vis.Edge) => {})
 
         nodeWatcherView.on("selected", (namespace) => {
             this.nodeWatcher.removeAllWatchableEventListeners()

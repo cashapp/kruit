@@ -48,11 +48,9 @@ export class WatcherView<T extends IWatchable> extends Komponent {
     protected rootColour = "#f7da00"
     protected visNetworkNodes: vis.DataSet<vis.Node>  = new vis.DataSet([])
     protected visNetworkEdges: vis.DataSet<vis.Edge> = new vis.DataSet([])
-    protected visNetwork = new vis.Network(this.container, { nodes: this.visNetworkNodes, edges: this.visNetworkEdges}, {
-        layout: {
-            improvedLayout: true,
-        },
-    })
+    protected visNetwork: vis.Network
+    private redrawIntervalId: NodeJS.Timeout
+    private redraw = true
 
     constructor(private container: HTMLDivElement, private centerNodeId: string,
                 private watcher: IWatcher<T>,
@@ -60,18 +58,71 @@ export class WatcherView<T extends IWatchable> extends Komponent {
                 private identifier: Indentifer<T>,
                 private OnChangeHook: OnChange<T>) {
             super()
+
+            const physics = {
+                physics: {
+                    forceAtlas2Based: {
+                      gravitationalConstant: -500,
+                      centralGravity: 0.1,
+                      springLength: 100,
+                      damping: 1,
+                    },
+                    maxVelocity: 1000,
+                    minVelocity: 1,
+                    solver: "forceAtlas2Based",
+                    timestep: 0.33,
+                }
+            }
+
+            // track if a disable timeout has been set, we'll be releasing it if so
+            let disableTimeout: NodeJS.Timeout
+
+            // track when it's the first drawing, we want to fit after it
+            let initalDrawing = true
+
+            // create an interval to check if we should redraw or not
+            this.redrawIntervalId = setInterval(() => {
+                // if redraw hasn' been request, bail
+                if (!this.redraw) {
+                    return
+                }
+
+                // clear redraw flag
+                this.redraw = false
+
+                // if there's a pending disable then clear it, we're going to set a new one
+                if (disableTimeout) {
+                    clearTimeout(disableTimeout)
+                }
+
+                // use physics config that wille move stuff around
+                this.visNetwork.setOptions(physics)
+                this.visNetwork.redraw()
+
+                // we don't want it to move stuff around forever, this stop after 2 seconds
+                disableTimeout = setTimeout(() => {
+                    this.visNetwork.setOptions({physics: false})
+                    // force the view to fit the cloud after initial population
+                    if (initalDrawing) {
+                        this.visNetwork.fit()
+                        initalDrawing = false
+                    }
+                }, 2000)
+            }, 200)
+
+            this.visNetwork = new vis.Network(this.container, { nodes: this.visNetworkNodes, edges: this.visNetworkEdges}, physics)
+
             this.visNetworkNodes.add({id: centerNodeId, label: centerNodeId, color: this.rootColour })
-            this.visNetwork.redraw()
 
             const resources = Array.from(this.watcher.getCached().values()).filter(filter)
             resources.forEach((resource) => {
                 const nodeID = this.identifier(resource) as string
                 const visNode: vis.Node = { id: nodeID, label: nodeID, shape: "box" }
-                const visEdge: vis.Edge = { to: centerNodeId, from: nodeID, length: 100 + Math.floor(Math.random() * Math.floor(400)) }
+                const visEdge: vis.Edge = { to: centerNodeId, from: nodeID }
                 this.OnChangeHook("ADDED", resource, visNode, visEdge)
                 this.visNetworkNodes.add(visNode)
                 this.visNetworkEdges.add(visEdge)
-                this.visNetwork.redraw()
+                this.redraw = true
             })
 
             this.visNetwork.on("selectNode", (params) => {
@@ -89,8 +140,8 @@ export class WatcherView<T extends IWatchable> extends Komponent {
     public destroy() {
         this.unregisterListeners()
         this.removeAllListeners()
+        clearInterval(this.redrawIntervalId)
     }
-
 
     private registerListeners() {
         this.watcher.on("ADDED", this.onAdded.bind(this))
@@ -106,12 +157,16 @@ export class WatcherView<T extends IWatchable> extends Komponent {
 
     private onAdded(resource: T) {
         const nodeID = this.identifier(resource) as string
+        // The node sho
+        if (this.visNetworkNodes.get(nodeID)) {
+            console.log(`Warning, node alreaded added: ${nodeID}`)
+        }
         const visNode: vis.Node = { id: nodeID, label: nodeID, shape: "box" }
-        const visEdge: vis.Edge = { to: this.centerNodeId, from: nodeID }
+        const visEdge: vis.Edge = { to: this.centerNodeId, from: nodeID, length: this.calculateEdgeLength() }
         this.OnChangeHook("ADDED", resource, visNode, visEdge)
         this.visNetworkNodes.add(visNode)
         this.visNetworkEdges.add(visEdge)
-        this.visNetwork.redraw()
+        this.redraw = true
     }
 
     private onModified(resource: T) {
@@ -119,7 +174,7 @@ export class WatcherView<T extends IWatchable> extends Komponent {
         const visNode = this.visNetworkNodes.get(nodeId)
         const visEdge = this.visNetworkEdges.get(nodeId)
         this.OnChangeHook("MODIFIED", resource, visNode, visEdge)
-        this.visNetwork.redraw()
+        this.redraw = true
     }
 
     private onDeleted(resource: T) {
@@ -127,7 +182,11 @@ export class WatcherView<T extends IWatchable> extends Komponent {
         this.visNetworkNodes.remove(nodeId)
         this.visNetworkEdges.remove(nodeId)
         this.OnChangeHook("DELETED", resource, null, null)
-        this.visNetwork.redraw()
+        this.redraw = true
+    }
+
+    private calculateEdgeLength(): number {
+        return undefined
     }
 }
 export class PodWatcherView extends WatcherView<V1Pod> {
@@ -135,7 +194,6 @@ export class PodWatcherView extends WatcherView<V1Pod> {
     private previouslySelectedChildrenNodeIds: string[] = null
     constructor(containingDiv: HTMLDivElement, centerNodeId: string, watcher: IWatcher<V1Pod>, filter: Filter<V1Pod>) {
         super(containingDiv, centerNodeId, watcher, filter, (pod: V1Pod) => pod.metadata!.name!, (event: WatchableEvents, pod: V1Pod, visNode: vis.Node, visEdge: vis.Edge) => {
-            console.log(event)
             switch (event) {
                 case "ADDED":
                 case "MODIFIED":
