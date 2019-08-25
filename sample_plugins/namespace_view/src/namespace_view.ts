@@ -67,7 +67,6 @@ class NamespaceViewer {
     private showNamespaceView() {
         const namespaceWatcherView = new WatcherView<V1Namespace>(this.topContainer, this.clusterVisNodeId, this.namespaceWatcher,
             (namespace: V1Namespace) => true,
-            (namespace: V1Namespace) => namespace.metadata!.name!,
             (event: WatchableEvents, node: V1Namespace, visNode: vis.Node, visEdge: vis.Edge) => {})
 
         namespaceWatcherView.on("selected", (namespace) => {

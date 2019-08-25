@@ -35,7 +35,6 @@ export class PodView extends Komponent {
 }
 
 export type Filter<T> = (resource: T) => boolean
-export type Indentifer<T> = (resource: T) => string
 export type OnChange<T> = (event: WatchableEvents, resource: T, visNode: vis.Node, visEdge: vis.Edge) => void
 export type WatcherViewEvent = "selected" | "back"
 
@@ -51,13 +50,14 @@ export class WatcherView<T extends IWatchable> extends Komponent {
     protected visNetwork: vis.Network
     private redrawIntervalId: NodeJS.Timeout
     private redraw = false
+
+    // adding nodes in batches improves visjs drawing performance
     private nodeAdditionQueue = new Array<vis.Node>()
     private edgeAdditionQueue = new Array<vis.Edge>()
 
     constructor(private container: HTMLDivElement, private centerNodeId: string,
                 private watcher: IWatcher<T>,
                 private filter: Filter<T>,
-                private identifier: Indentifer<T>,
                 private OnChangeHook: OnChange<T>) {
             super()
 
@@ -97,7 +97,6 @@ export class WatcherView<T extends IWatchable> extends Komponent {
                     clearTimeout(disableTimeout)
                 }
 
-                // use physics config that wille move stuff around
                 this.visNetworkNodes.update(this.nodeAdditionQueue)
                 this.nodeAdditionQueue = new Array<vis.Node>()
                 this.visNetworkEdges.update(this.edgeAdditionQueue)
@@ -105,7 +104,7 @@ export class WatcherView<T extends IWatchable> extends Komponent {
                 this.visNetwork.setOptions(physics)
                 this.visNetwork.redraw()
 
-                // we don't want it to move stuff around forever, this stop after 2 seconds
+                // we don't want it to move stuff around forever, stop after 2 seconds
                 disableTimeout = setTimeout(() => {
                     this.visNetwork.setOptions({physics: false})
                     // force the view to fit the cloud after initial population
@@ -124,7 +123,7 @@ export class WatcherView<T extends IWatchable> extends Komponent {
             const nodes = new Array<vis.Node>()
             const edges = new Array<vis.Edge>()
             resources.forEach((resource) => {
-                const nodeID = this.identifier(resource) as string
+                const nodeID = resource.metadata.name
                 const visNode: vis.Node = { id: nodeID, label: nodeID, shape: "box" }
                 const visEdge: vis.Edge = { to: centerNodeId, from: nodeID }
                 this.OnChangeHook("ADDED", resource, visNode, visEdge)
@@ -165,7 +164,7 @@ export class WatcherView<T extends IWatchable> extends Komponent {
     }
 
     private onAdded(resource: T) {
-        const nodeID = this.identifier(resource) as string
+        const nodeID = resource.metadata.name
         // The node sho
         if (this.visNetworkNodes.get(nodeID)) {
             console.log(`Warning, node alreaded added: ${nodeID}`)
@@ -179,7 +178,7 @@ export class WatcherView<T extends IWatchable> extends Komponent {
     }
 
     private onModified(resource: T) {
-        const nodeId = this.identifier(resource)
+        const nodeId = resource.metadata.name
         const visNode = this.visNetworkNodes.get(nodeId)
         const visEdge = this.visNetworkEdges.get(nodeId)
         this.OnChangeHook("MODIFIED", resource, visNode, visEdge)
@@ -187,7 +186,7 @@ export class WatcherView<T extends IWatchable> extends Komponent {
     }
 
     private onDeleted(resource: T) {
-        const nodeId = this.identifier(resource)
+        const nodeId = resource.metadata.name
         this.visNetworkNodes.remove(nodeId)
         this.visNetworkEdges.remove(nodeId)
         this.OnChangeHook("DELETED", resource, null, null)
@@ -202,7 +201,7 @@ export class PodWatcherView extends WatcherView<V1Pod> {
     private previouslySelectedNodeId: string = null
     private previouslySelectedChildrenNodeIds: string[] = null
     constructor(containingDiv: HTMLDivElement, centerNodeId: string, watcher: IWatcher<V1Pod>, filter: Filter<V1Pod>) {
-        super(containingDiv, centerNodeId, watcher, filter, (pod: V1Pod) => pod.metadata!.name!, (event: WatchableEvents, pod: V1Pod, visNode: vis.Node, visEdge: vis.Edge) => {
+        super(containingDiv, centerNodeId, watcher, filter, (event: WatchableEvents, pod: V1Pod, visNode: vis.Node, visEdge: vis.Edge) => {
             switch (event) {
                 case "ADDED":
                 case "MODIFIED":
