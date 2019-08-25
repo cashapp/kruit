@@ -50,7 +50,9 @@ export class WatcherView<T extends IWatchable> extends Komponent {
     protected visNetworkEdges: vis.DataSet<vis.Edge> = new vis.DataSet([])
     protected visNetwork: vis.Network
     private redrawIntervalId: NodeJS.Timeout
-    private redraw = true
+    private redraw = false
+    private nodeAdditionQueue = new Array<vis.Node>()
+    private edgeAdditionQueue = new Array<vis.Edge>()
 
     constructor(private container: HTMLDivElement, private centerNodeId: string,
                 private watcher: IWatcher<T>,
@@ -96,6 +98,10 @@ export class WatcherView<T extends IWatchable> extends Komponent {
                 }
 
                 // use physics config that wille move stuff around
+                this.visNetworkNodes.update(this.nodeAdditionQueue)
+                this.nodeAdditionQueue = new Array<vis.Node>()
+                this.visNetworkEdges.update(this.edgeAdditionQueue)
+                this.edgeAdditionQueue = new Array<vis.Edge>()
                 this.visNetwork.setOptions(physics)
                 this.visNetwork.redraw()
 
@@ -115,15 +121,18 @@ export class WatcherView<T extends IWatchable> extends Komponent {
             this.visNetworkNodes.add({id: centerNodeId, label: centerNodeId, color: this.rootColour })
 
             const resources = Array.from(this.watcher.getCached().values()).filter(filter)
+            const nodes = new Array<vis.Node>()
+            const edges = new Array<vis.Edge>()
             resources.forEach((resource) => {
                 const nodeID = this.identifier(resource) as string
                 const visNode: vis.Node = { id: nodeID, label: nodeID, shape: "box" }
                 const visEdge: vis.Edge = { to: centerNodeId, from: nodeID }
                 this.OnChangeHook("ADDED", resource, visNode, visEdge)
-                this.visNetworkNodes.add(visNode)
-                this.visNetworkEdges.add(visEdge)
-                this.redraw = true
+                this.nodeAdditionQueue.push(visNode)
+                this.edgeAdditionQueue.push(visEdge)
             })
+            this.redraw = true
+
 
             this.visNetwork.on("selectNode", (params) => {
                 const selectedNetworkNodeId = this.visNetwork.getNodeAt(params.pointer.DOM) as string
@@ -164,8 +173,8 @@ export class WatcherView<T extends IWatchable> extends Komponent {
         const visNode: vis.Node = { id: nodeID, label: nodeID, shape: "box" }
         const visEdge: vis.Edge = { to: this.centerNodeId, from: nodeID, length: this.calculateEdgeLength() }
         this.OnChangeHook("ADDED", resource, visNode, visEdge)
-        this.visNetworkNodes.add(visNode)
-        this.visNetworkEdges.add(visEdge)
+        this.nodeAdditionQueue.push(visNode)
+        this.edgeAdditionQueue.push(visEdge)
         this.redraw = true
     }
 
