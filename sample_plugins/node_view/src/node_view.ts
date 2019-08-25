@@ -7,8 +7,8 @@ import $ from "jquery"
 export = (): void => {
     $("head").append(`<link href="node_modules/vis/dist/vis-network.min.css" rel="stylesheet" type="text/css" />`)
     $("#container").append(`
-        <div class="node_view_top" style="height: 50%"/>
-        <div class="node_view_bottom tabs" style="height: 50%"/>
+        <div class="node_view_top"/>
+        <div class="node_view_bottom tabs"/>
     `)
     const nodeViewer = new NodeViewer($("#container").get(0) as HTMLDivElement)
 }
@@ -40,6 +40,9 @@ class NodeViewer {
     }
 
     public showPodWatcherView(node: V1Node) {
+        $(this.topContainer).css("height", "50%")
+        $(this.bottomContainer).css("height", "50%")
+
         const podWatcherView = new PodWatcherView(
             this.topContainer,
             this.clusterVisNodeId,
@@ -66,6 +69,9 @@ class NodeViewer {
     }
 
     private showNodeView() {
+        $(this.topContainer).css("height", "100%")
+        $(this.bottomContainer).css("height", "0%")
+
         const nodeWatcherView = new WatcherView<V1Node>(this.topContainer, this.clusterVisNodeId, this.nodeWatcher,
             () => true, (event: WatchableEvents, node: V1Node, visNode: vis.Node, visEdge: vis.Edge) => {})
 

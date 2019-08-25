@@ -6,8 +6,8 @@ import $ from "jquery"
 export = (context: any): void => {
     $("head").append(`<link href="node_modules/vis/dist/vis-network.min.css" rel="stylesheet" type="text/css" />`)
     $("#container").append(`
-        <div class="node_view_top" style="height: 50%"/>
-        <div class="node_view_bottom tabs" style="height: 50%"/>
+        <div class="node_view_top"/>
+        <div class="node_view_bottom tabs"/>
     `)
     const namespaceViewer = new NamespaceViewer($("#container").get(0) as HTMLDivElement)
 }
@@ -39,6 +39,8 @@ class NamespaceViewer {
     }
 
     public showPodWatcherView(namespace: V1Namespace) {
+        $(this.topContainer).css("height", "50%")
+        $(this.bottomContainer).css("height", "50%")
         const podWatcherView = new PodWatcherView(
             this.topContainer,
             this.clusterVisNodeId,
@@ -65,6 +67,8 @@ class NamespaceViewer {
     }
 
     private showNamespaceView() {
+        $(this.topContainer).css("height", "100%")
+        $(this.bottomContainer).css("height", "0%")
         const namespaceWatcherView = new WatcherView<V1Namespace>(this.topContainer, this.clusterVisNodeId, this.namespaceWatcher,
             (namespace: V1Namespace) => true,
             (event: WatchableEvents, node: V1Namespace, visNode: vis.Node, visEdge: vis.Edge) => {})
