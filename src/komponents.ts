@@ -73,14 +73,21 @@ export class WatcherView<T extends IWatchable> extends Komponent {
                     minVelocity: 1,
                     solver: "forceAtlas2Based",
                     timestep: 0.33,
-                }
+                },
             }
+
+            // attempt to fit for the first 2 seconds
+            let count = 0
+            const intervalID = setInterval(() => {
+                if (count++ < 10) {
+                    this.visNetwork.fit()
+                } else {
+                    clearInterval(intervalID)
+                }
+            }, 200)
 
             // track if a disable timeout has been set, we'll be releasing it if so
             let disableTimeout: NodeJS.Timeout
-
-            // track when it's the first drawing, we want to fit after it
-            let initalDrawing = true
 
             // create an interval to check if we should redraw or not
             this.redrawIntervalId = setInterval(() => {
@@ -107,11 +114,7 @@ export class WatcherView<T extends IWatchable> extends Komponent {
                 // we don't want it to move stuff around forever, stop after 2 seconds
                 disableTimeout = setTimeout(() => {
                     this.visNetwork.setOptions({physics: false})
-                    // force the view to fit the cloud after initial population
-                    if (initalDrawing) {
-                        this.visNetwork.fit()
-                        initalDrawing = false
-                    }
+
                 }, 2000)
             }, 200)
 
@@ -131,7 +134,6 @@ export class WatcherView<T extends IWatchable> extends Komponent {
                 this.edgeAdditionQueue.push(visEdge)
             })
             this.redraw = true
-
 
             this.visNetwork.on("selectNode", (params) => {
                 const selectedNetworkNodeId = this.visNetwork.getNodeAt(params.pointer.DOM) as string
