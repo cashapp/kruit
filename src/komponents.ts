@@ -166,6 +166,10 @@ export class WatcherView<T extends IWatchable> extends Komponent {
     }
 
     private onAdded(resource: T) {
+        // is this a pod we're interested in?
+        if (!this.filter(resource)) {
+            return
+        }
         const nodeID = resource.metadata.name
         // The node sho
         if (this.visNetworkNodes.get(nodeID)) {
@@ -180,6 +184,10 @@ export class WatcherView<T extends IWatchable> extends Komponent {
     }
 
     private onModified(resource: T) {
+        // is this a pod we're interested in?
+        if (!this.filter(resource)) {
+            return
+        }
         const nodeId = resource.metadata.name
         const visNode = this.visNetworkNodes.get(nodeId)
         const visEdge = this.visNetworkEdges.get(nodeId)
@@ -188,6 +196,10 @@ export class WatcherView<T extends IWatchable> extends Komponent {
     }
 
     private onDeleted(resource: T) {
+        // is this a pod we're interested in?
+        if (!this.filter(resource)) {
+            return
+        }
         const nodeId = resource.metadata.name
         this.visNetworkNodes.remove(nodeId)
         this.visNetworkEdges.remove(nodeId)
