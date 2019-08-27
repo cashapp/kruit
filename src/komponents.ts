@@ -43,6 +43,21 @@ export interface IWatcherView<T> {
     on(event: "back", listener: () => void): void
 }
 
+// INodeFactory defines an interface of node factories which create vis.Nodes. They provide WatcherView with a
+// mechanism for having customer node shapes/colours/sizes.
+// custom nodes (colouring/shapes/size etc).
+export interface INodeFactory<T extends IWatchable> {
+    createNode(resource: T): vis.Node
+}
+
+
+// DefaultNodeFactory creates the default vis.Node instances when another INodeFactory hasn't been supplied.
+class DefaultNodeFactory<T extends IWatchable> implements INodeFactory<T> {
+    public createNode(resource: T): vis.Node {
+        return { id: resource.metadata!.name, label: resource.metadata!.name, shape: "box" }
+    }
+}
+
 export class WatcherView<T extends IWatchable> extends Komponent {
     protected rootColour = "#f7da00"
     protected visNetworkNodes: vis.DataSet<vis.Node>  = new vis.DataSet([])
@@ -58,7 +73,8 @@ export class WatcherView<T extends IWatchable> extends Komponent {
     constructor(private container: HTMLDivElement, private centerNodeId: string,
                 private watcher: IWatcher<T>,
                 private filter: Filter<T>,
-                private OnChangeHook: OnChange<T>) {
+                private OnChangeHook: OnChange<T>,
+                private nodeFactory: INodeFactory<T> = new DefaultNodeFactory<T>()) {
             super()
 
             const physics = {
@@ -127,7 +143,7 @@ export class WatcherView<T extends IWatchable> extends Komponent {
             const edges = new Array<vis.Edge>()
             resources.forEach((resource) => {
                 const nodeID = resource.metadata.name
-                const visNode: vis.Node = { id: nodeID, label: nodeID, shape: "box" }
+                const visNode: vis.Node = this.nodeFactory.createNode(resource)
                 const visEdge: vis.Edge = { to: centerNodeId, from: nodeID }
                 this.OnChangeHook("ADDED", resource, visNode, visEdge)
                 this.nodeAdditionQueue.push(visNode)
@@ -175,7 +191,7 @@ export class WatcherView<T extends IWatchable> extends Komponent {
         if (this.visNetworkNodes.get(nodeID)) {
             console.log(`Warning, node alreaded added: ${nodeID}`)
         }
-        const visNode: vis.Node = { id: nodeID, label: nodeID, shape: "box" }
+        const visNode: vis.Node = this.nodeFactory.createNode(resource)
         const visEdge: vis.Edge = { to: this.centerNodeId, from: nodeID, length: this.calculateEdgeLength() }
         this.OnChangeHook("ADDED", resource, visNode, visEdge)
         this.nodeAdditionQueue.push(visNode)
@@ -211,6 +227,7 @@ export class WatcherView<T extends IWatchable> extends Komponent {
         return undefined
     }
 }
+
 export class PodWatcherView extends WatcherView<V1Pod> {
     private previouslySelectedNodeId: string = null
     private previouslySelectedChildrenNodeIds: string[] = null
