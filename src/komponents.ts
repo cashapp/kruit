@@ -48,6 +48,7 @@ export interface IWatcherView<T> {
 // custom nodes (colouring/shapes/size etc).
 export interface INodeFactory<T extends IWatchable> {
     createNode(resource: T): vis.Node
+    on(event: "refresh", listener: (resource: T) => void): void
 }
 
 
@@ -55,6 +56,11 @@ export interface INodeFactory<T extends IWatchable> {
 class DefaultNodeFactory<T extends IWatchable> implements INodeFactory<T> {
     public createNode(resource: T): vis.Node {
         return { id: resource.metadata!.name, label: resource.metadata!.name, shape: "box" }
+    }
+
+    public on(event: "refresh", listener: (resource: T) => void) {
+        // NOOP only here to satisfy INodeFactory
+        return
     }
 }
 
@@ -67,8 +73,8 @@ export class WatcherView<T extends IWatchable> extends Komponent {
     private redraw = false
 
     // adding nodes in batches improves visjs drawing performance
-    private nodeAdditionQueue = new Array<vis.Node>()
-    private edgeAdditionQueue = new Array<vis.Edge>()
+    private nodeUpdateQueue = new Array<vis.Node>()
+    private edgeUpsertQueue = new Array<vis.Edge>()
 
     constructor(private container: HTMLDivElement, private centerNodeId: string,
                 private watcher: IWatcher<T>,
@@ -120,10 +126,10 @@ export class WatcherView<T extends IWatchable> extends Komponent {
                     clearTimeout(disableTimeout)
                 }
 
-                this.visNetworkNodes.update(this.nodeAdditionQueue)
-                this.nodeAdditionQueue = new Array<vis.Node>()
-                this.visNetworkEdges.update(this.edgeAdditionQueue)
-                this.edgeAdditionQueue = new Array<vis.Edge>()
+                this.visNetworkNodes.update(this.nodeUpdateQueue)
+                this.nodeUpdateQueue = new Array<vis.Node>()
+                this.visNetworkEdges.update(this.edgeUpsertQueue)
+                this.edgeUpsertQueue = new Array<vis.Edge>()
                 this.visNetwork.setOptions(physics)
                 this.visNetwork.redraw()
 
@@ -146,8 +152,8 @@ export class WatcherView<T extends IWatchable> extends Komponent {
                 const visNode: vis.Node = this.nodeFactory.createNode(resource)
                 const visEdge: vis.Edge = { to: centerNodeId, from: nodeID }
                 this.OnChangeHook("ADDED", resource, visNode, visEdge)
-                this.nodeAdditionQueue.push(visNode)
-                this.edgeAdditionQueue.push(visEdge)
+                this.nodeUpdateQueue.push(visNode)
+                this.edgeUpsertQueue.push(visEdge)
             })
             this.redraw = true
 
@@ -161,6 +167,12 @@ export class WatcherView<T extends IWatchable> extends Komponent {
             })
 
             this.registerListeners()
+
+            nodeFactory.on("refresh", (namespace) => {
+                const visNode: vis.Node = this.nodeFactory.createNode(namespace)
+                this.nodeUpdateQueue.push(visNode)
+                this.redraw = true
+            })
     }
 
     public destroy() {
@@ -194,8 +206,8 @@ export class WatcherView<T extends IWatchable> extends Komponent {
         const visNode: vis.Node = this.nodeFactory.createNode(resource)
         const visEdge: vis.Edge = { to: this.centerNodeId, from: nodeID, length: this.calculateEdgeLength() }
         this.OnChangeHook("ADDED", resource, visNode, visEdge)
-        this.nodeAdditionQueue.push(visNode)
-        this.edgeAdditionQueue.push(visEdge)
+        this.nodeUpdateQueue.push(visNode)
+        this.edgeUpsertQueue.push(visEdge)
         this.redraw = true
     }
 
