@@ -18,13 +18,6 @@ export = (context: any): void => {
 
 class NamespaceNodeFactory extends EventEmitter implements INodeFactory<Kubernetes.V1Namespace> {
     private podsByNameByNamespaceName: Map<string, Map<string, Kubernetes.V1Pod>> = new Map()
-
-    // Note this functions are bound so they can easily be removed from event listeners
-    private onNamespaceAdded = this._onNamespaceAdded.bind(this)
-    private onNamespaceDeleted = this._onNamespaceDeleted.bind(this)
-    private onPodAdded = this._onPodAdded.bind(this)
-    private onPodDeleted = this._onPodDeleted.bind(this)
-    private onPodModified = this._onPodModified.bind(this)
     constructor(private namespaceWatcher: IWatcher<Kubernetes.V1Namespace>, private podWatcher: IWatcher<Kubernetes.V1Pod>) {
         super()
         // initial map with all namespaces that currently known
@@ -109,6 +102,8 @@ class NamespaceNodeFactory extends EventEmitter implements INodeFactory<Kubernet
         this.podWatcher.removeListener("MODIFIED", this.onPodModified)
     }
 
+    // NB(gflarity) Force bind so that can be used/removed from event emitters
+    private onNamespaceAdded = this._onNamespaceAdded.bind(this)
     private _onNamespaceAdded(namespace: Kubernetes.V1Namespace) {
         const namespaceName = namespace.metadata!.name!
         if (this.podsByNameByNamespaceName.has(namespaceName)) {
@@ -118,7 +113,9 @@ class NamespaceNodeFactory extends EventEmitter implements INodeFactory<Kubernet
         this.podsByNameByNamespaceName.set(namespace.metadata!.name!, new Map<string, Kubernetes.V1Pod>())
         this.emit("refresh", namespace)
     }
- 
+
+    // NB(gflarity) Force bind so that can be used/removed from event emitters
+    private onNamespaceDeleted = this._onNamespaceDeleted.bind(this)
     private _onNamespaceDeleted(namespace: Kubernetes.V1Namespace) {
         const namespaceName = namespace.metadata!.name!
         if (!this.podsByNameByNamespaceName.has(namespaceName)) {
@@ -129,6 +126,8 @@ class NamespaceNodeFactory extends EventEmitter implements INodeFactory<Kubernet
         this.emit("refresh", namespace)
     }
 
+    // NB(gflarity) Force bind so that can be used/removed from event emitters
+    private onPodAdded = this._onPodAdded.bind(this)
     private _onPodAdded(pod: Kubernetes.V1Pod) {
         const namespaceName = pod.metadata!.namespace!
         if (!this.podsByNameByNamespaceName.has(namespaceName)) {
@@ -138,7 +137,7 @@ class NamespaceNodeFactory extends EventEmitter implements INodeFactory<Kubernet
         this.podsByNameByNamespaceName.get(namespaceName)!.set(pod.metadata!.name!, pod)
         this.emitRefresh(namespaceName)
     }
-
+    private onPodDeleted = this._onPodDeleted.bind(this)
     private _onPodDeleted(pod: Kubernetes.V1Pod) {
         const namespaceName = pod.metadata!.namespace!
         if (!this.podsByNameByNamespaceName.has(namespaceName)) {
@@ -155,6 +154,7 @@ class NamespaceNodeFactory extends EventEmitter implements INodeFactory<Kubernet
         this.emitRefresh(namespaceName)
     }
 
+    private onPodModified = this._onPodModified.bind(this)
     private _onPodModified(pod: Kubernetes.V1Pod) {
         const namespaceName = pod.metadata!.namespace!
         if (!this.podsByNameByNamespaceName.has(namespaceName)) {
