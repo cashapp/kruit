@@ -18,6 +18,13 @@ export = (context: any): void => {
 
 class NamespaceNodeFactory extends EventEmitter implements INodeFactory<Kubernetes.V1Namespace> {
     private podsByNameByNamespaceName: Map<string, Map<string, Kubernetes.V1Pod>> = new Map()
+
+    // Note this functions are bound so they can easily be removed from event listeners
+    private onNamespaceAdded = this._onNamespaceAdded.bind(this)
+    private onNamespaceDeleted = this._onNamespaceDeleted.bind(this)
+    private onPodAdded = this._onPodAdded.bind(this)
+    private onPodDeleted = this._onPodDeleted.bind(this)
+    private onPodModified = this._onPodModified.bind(this)
     constructor(private namespaceWatcher: IWatcher<Kubernetes.V1Namespace>, private podWatcher: IWatcher<Kubernetes.V1Pod>) {
         super()
         // initial map with all namespaces that currently known
@@ -31,67 +38,7 @@ class NamespaceNodeFactory extends EventEmitter implements INodeFactory<Kubernet
             this.podsByNameByNamespaceName.get(namespace)!.set(podName,pod)
         }
         
-        this.namespaceWatcher.on("ADDED", (namespace) => {
-            const namespaceName = namespace.metadata!.name!
-            if (this.podsByNameByNamespaceName.has(namespaceName)) {
-                console.log("namespace already exists in podsByNameByNamespaceName, this is unexpected")
-                return
-            }
-            this.podsByNameByNamespaceName.set(namespace.metadata!.name!, new Map<string, Kubernetes.V1Pod>())
-            this.emit("refresh", namespace)
-        })
-
-        this.namespaceWatcher.on("DELETED", (namespace) => {
-            const namespaceName = namespace.metadata!.name!
-            if (!this.podsByNameByNamespaceName.has(namespaceName)) {
-                console.log(`namespace ${namespaceName} does not exist in podsByNameByNamespaceName, this is unexpected`)
-                return
-            }
-            this.podsByNameByNamespaceName.delete(namespace.metadata!.name!)
-            this.emit("refresh", namespace)
-        })
-
-        this.podWatcher.on("ADDED", pod => {
-            const namespaceName = pod.metadata!.namespace!
-            if (!this.podsByNameByNamespaceName.has(namespaceName)) {
-                console.log(`namespace ${namespaceName} does not exist in podsByNameByNamespaceName, this is unexpected`)
-                this.podsByNameByNamespaceName.set(namespaceName, new Map<string, Kubernetes.V1Pod>())
-            }
-            this.podsByNameByNamespaceName.get(namespaceName)!.set(pod.metadata!.name!, pod)
-            this.emitRefresh(namespaceName)
-        })
-
-        this.podWatcher.on("DELETED", pod => {
-            const namespaceName = pod.metadata!.namespace!
-            if (!this.podsByNameByNamespaceName.has(namespaceName)) {
-                console.log(`namespace ${namespaceName} does not exist in podsByNameByNamespaceName, this is unexpected`)
-                this.podsByNameByNamespaceName.set(namespaceName, new Map<string, Kubernetes.V1Pod>())
-            }
-            
-            const podName = pod.metadata!.name!
-            if (!this.podsByNameByNamespaceName.get(namespaceName)!.has(podName)) {
-                console.log(`pod ${podName} does not exist in podsByNameByNamespaceName, this is unexpected`)             
-                return
-            }
-            this.podsByNameByNamespaceName.get(namespaceName)!.delete(podName!)
-            this.emitRefresh(namespaceName)
-        })
-     
-        this.podWatcher.on("MODIFIED", pod => {
-            const namespaceName = pod.metadata!.namespace!
-            if (!this.podsByNameByNamespaceName.has(namespaceName)) {
-                console.log(`namespace ${namespaceName} does not exist in podsByNameByNamespaceName, this is unexpected`)
-                this.podsByNameByNamespaceName.set(namespaceName, new Map<string, Kubernetes.V1Pod>())
-            }
-            
-            const podName = pod.metadata!.name
-            if (!this.podsByNameByNamespaceName.get(namespaceName!)!.has(podName!)) {
-                console.log(`pod ${podName} does not exist in podsByNameByNamespaceName, this is unexpected`)             
-            }
-            this.podsByNameByNamespaceName.get(namespaceName!)!.set(podName!, pod)
-            this.emitRefresh(namespaceName)
-        })
-
+        this.addListeners()
     }
 
     public createNode(namespace: Kubernetes.V1Namespace): vis.Node {
@@ -109,9 +56,12 @@ class NamespaceNodeFactory extends EventEmitter implements INodeFactory<Kubernet
         return { id: namespace.metadata!.name, label: namespace.metadata!.name, shape: "box", color: colour }
     }
 
+    public destroy() {
+        this.removeListeners()
+    }
+
     private healthCheck(namespaceName: string): {happy: number, pending: number, sad: number, unknown: boolean} {
-        if (!this.podsByNameByNamespaceName.has(namespaceName)) {
-            console.log(`namespace ${namespaceName} does not exist in podsByNameByNamespaceName, this is unexpected`)
+        if (!this.podsByNameByNamespaceName.has(namespaceName)) {           
             return { happy: 0, pending: 0, sad: 0, unknown: true} 
         }
 
@@ -141,6 +91,83 @@ class NamespaceNodeFactory extends EventEmitter implements INodeFactory<Kubernet
             return
         }
         this.emit("refresh", namespace)
+    }
+
+    private addListeners() {
+        this.namespaceWatcher.on("ADDED", this.onNamespaceAdded)
+        this.namespaceWatcher.on("DELETED", this.onNamespaceDeleted)
+        this.podWatcher.on("ADDED", this.onPodAdded)
+        this.podWatcher.on("DELETED", this.onPodDeleted)
+        this.podWatcher.on("MODIFIED", this.onPodModified)
+    }
+
+    private removeListeners() {
+        this.namespaceWatcher.removeListener("ADDED", this.onNamespaceAdded)
+        this.namespaceWatcher.removeListener("DELETED", this.onNamespaceDeleted)
+        this.podWatcher.removeListener("ADDED", this.onPodAdded)
+        this.podWatcher.removeListener("DELETED", this.onPodDeleted)
+        this.podWatcher.removeListener("MODIFIED", this.onPodModified)
+    }
+
+    private _onNamespaceAdded(namespace: Kubernetes.V1Namespace) {
+        const namespaceName = namespace.metadata!.name!
+        if (this.podsByNameByNamespaceName.has(namespaceName)) {
+            console.log("namespace already exists in podsByNameByNamespaceName, this is unexpected")
+            return
+        }
+        this.podsByNameByNamespaceName.set(namespace.metadata!.name!, new Map<string, Kubernetes.V1Pod>())
+        this.emit("refresh", namespace)
+    }
+ 
+    private _onNamespaceDeleted(namespace: Kubernetes.V1Namespace) {
+        const namespaceName = namespace.metadata!.name!
+        if (!this.podsByNameByNamespaceName.has(namespaceName)) {
+            console.log(`namespace ${namespaceName} does not exist in podsByNameByNamespaceName, this is unexpected`)
+            return
+        }
+        this.podsByNameByNamespaceName.delete(namespace.metadata!.name!)
+        this.emit("refresh", namespace)
+    }
+
+    private _onPodAdded(pod: Kubernetes.V1Pod) {
+        const namespaceName = pod.metadata!.namespace!
+        if (!this.podsByNameByNamespaceName.has(namespaceName)) {
+            console.log(`namespace ${namespaceName} does not exist in podsByNameByNamespaceName, this is unexpected`)
+            this.podsByNameByNamespaceName.set(namespaceName, new Map<string, Kubernetes.V1Pod>())
+        }
+        this.podsByNameByNamespaceName.get(namespaceName)!.set(pod.metadata!.name!, pod)
+        this.emitRefresh(namespaceName)
+    }
+
+    private _onPodDeleted(pod: Kubernetes.V1Pod) {
+        const namespaceName = pod.metadata!.namespace!
+        if (!this.podsByNameByNamespaceName.has(namespaceName)) {
+            console.log(`namespace ${namespaceName} does not exist in podsByNameByNamespaceName, this is unexpected`)
+            this.podsByNameByNamespaceName.set(namespaceName, new Map<string, Kubernetes.V1Pod>())
+        }
+        
+        const podName = pod.metadata!.name!
+        if (!this.podsByNameByNamespaceName.get(namespaceName)!.has(podName)) {
+            console.log(`pod ${podName} does not exist in podsByNameByNamespaceName, this is unexpected`)             
+            return
+        }
+        this.podsByNameByNamespaceName.get(namespaceName)!.delete(podName!)
+        this.emitRefresh(namespaceName)
+    }
+
+    private _onPodModified(pod: Kubernetes.V1Pod) {
+        const namespaceName = pod.metadata!.namespace!
+        if (!this.podsByNameByNamespaceName.has(namespaceName)) {
+            console.log(`namespace ${namespaceName} does not exist in podsByNameByNamespaceName, this is unexpected`)
+            this.podsByNameByNamespaceName.set(namespaceName, new Map<string, Kubernetes.V1Pod>())
+        }
+        
+        const podName = pod.metadata!.name
+        if (!this.podsByNameByNamespaceName.get(namespaceName!)!.has(podName!)) {
+            console.log(`pod ${podName} does not exist in podsByNameByNamespaceName, this is unexpected`)             
+        }
+        this.podsByNameByNamespaceName.get(namespaceName!)!.set(podName!, pod)
+        this.emitRefresh(namespaceName)
     }
 }
 
@@ -202,15 +229,16 @@ class NamespaceViewer {
         $(this.topContainer).css("height", "100%")
         $(this.bottomContainer).css("height", "0%")
 
-        const namespaceColouredNodes = new NamespaceNodeFactory(this.namespaceWatcher, this.podWatcher)
+        const namespaceColourer = new NamespaceNodeFactory(this.namespaceWatcher, this.podWatcher)
         const namespaceWatcherView = new WatcherView<Kubernetes.V1Namespace>(this.topContainer, this.clusterVisNodeId, this.namespaceWatcher,
             (namespace: Kubernetes.V1Namespace) => true,
             (event: WatchableEvents, node: Kubernetes.V1Namespace, visNode: vis.Node, visEdge: vis.Edge) => {},
-            namespaceColouredNodes)
+            namespaceColourer)
 
         namespaceWatcherView.on("selected", (namespace) => {
             this.namespaceWatcher.removeAllWatchableEventListeners()
             namespaceWatcherView.destroy()
+            namespaceColourer.destroy()
             this.showPodWatcherView(namespace)
         })
     }
