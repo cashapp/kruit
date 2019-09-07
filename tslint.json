@@ -5,6 +5,7 @@
     "new-parens": true,
     "no-arg": true,
     "no-bitwise": true,
+    "one-variable-per-declaration": false,
     "object-literal-sort-keys": false,
     "no-conditional-assignment": true,
     "no-consecutive-blank-lines": false,

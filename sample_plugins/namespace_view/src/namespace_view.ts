@@ -1,6 +1,5 @@
-import { IWatcher, Kubernetes, newKubeConfig, PodView, PodWatcherView, WatchableEvents, Watcher, WatcherView } from "clustermuck"
+import { IWatcher, Kubernetes, newKubeConfig, PodView, PodWatcherView, WatchableEvents, Watcher, WatcherView, INodeFactory, PodHealthAggregator } from "kuitk"
 import $ from "jquery"
-import { INodeFactory } from '../../../dist/komponents';
 import { stringLiteral } from "@babel/types";
 import { V1Namespace } from '@kubernetes/client-node';
 import { Stream } from 'stream';

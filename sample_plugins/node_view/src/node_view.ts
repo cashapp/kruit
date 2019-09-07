@@ -1,5 +1,5 @@
 import { V1Node, V1Pod } from "@kubernetes/client-node"
-import { IWatcher, Kubernetes, newKubeConfig, PodView, PodWatcherView, WatchableEvents, Watcher, WatcherView } from "clustermuck"
+import { IWatcher, Kubernetes, newKubeConfig, PodView, PodWatcherView, WatchableEvents, Watcher, WatcherView } from "kuitk"
 import $ from "jquery"
 
 
@@ -73,7 +73,7 @@ class NodeViewer {
         $(this.bottomContainer).css("height", "0%")
 
         const nodeWatcherView = new WatcherView<V1Node>(this.topContainer, this.clusterVisNodeId, this.nodeWatcher,
-            () => true, (event: WatchableEvents, node: V1Node, visNode: vis.Node, visEdge: vis.Edge) => {})
+            () => true, (event: WatchableEvents, node: V1Node, visNode: vis.Node | null, visEdge: vis.Edge | null) => {})
 
         nodeWatcherView.on("selected", (namespace) => {
             this.nodeWatcher.removeAllWatchableEventListeners()

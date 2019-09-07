@@ -1,5 +1,5 @@
 {
-  "name": "clustermuck",
+  "name": "kuitk",
   "version": "1.0.0",
   "description": "",
   "scripts": {
@@ -23,7 +23,7 @@
   "devDependencies": {
     "@types/jest": "^24.0.17",
     "@types/jquery": "^3.3.31",
-    "electron": "^5.0.9",
+    "electron": "^5.0.10",
     "jest": "^24.8.0",
     "ts-jest": "^24.0.2",
     "tslint": "^5.18.0",

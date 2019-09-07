@@ -14,7 +14,8 @@
   },
   "dependencies": {
     "@types/vis": "^4.21.18",
-    "clustermuck": "file:../..",
+    "jquery": "^3.4.1",
+    "kut": "file:../..",
     "vis-network": "^5.0.0"
   }
 }

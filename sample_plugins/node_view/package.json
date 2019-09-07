@@ -14,7 +14,7 @@
   },
   "dependencies": {
     "@types/vis": "^4.21.18",
-    "clustermuck": "file:../..",
+    "kut": "file:../..",
     "vis-network": "^5.0.0"
   }
 }

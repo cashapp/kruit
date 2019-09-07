@@ -1,4 +1,4 @@
-import { KubeConfig, V1Container, V1Pod } from "@kubernetes/client-node"
+import { KubeConfig, V1Container, V1Namespace, V1Node, V1Pod } from "@kubernetes/client-node"
 import { EventEmitter } from "events"
 import * as vis from "vis"
 import { PodWrapper } from "./kubernetes/pod_wrapper"
@@ -35,7 +35,7 @@ export class PodView extends Komponent {
 }
 
 export type Filter<T> = (resource: T) => boolean
-export type OnChange<T> = (event: WatchableEvents, resource: T, visNode: vis.Node, visEdge: vis.Edge) => void
+export type OnChange<T> = (event: WatchableEvents, resource: T, visNode: vis.Node | null, visEdge: vis.Edge | null) => void
 export type WatcherViewEvent = "selected" | "back"
 
 export interface IWatcherView<T> {
@@ -148,7 +148,7 @@ export class WatcherView<T extends IWatchable> extends Komponent {
             const nodes = new Array<vis.Node>()
             const edges = new Array<vis.Edge>()
             resources.forEach((resource) => {
-                const nodeID = resource.metadata.name
+                const nodeID = resource.metadata!.name
                 const visNode: vis.Node = this.nodeFactory.createNode(resource)
                 const visEdge: vis.Edge = { to: centerNodeId, from: nodeID }
                 this.OnChangeHook("ADDED", resource, visNode, visEdge)
@@ -198,7 +198,7 @@ export class WatcherView<T extends IWatchable> extends Komponent {
         if (!this.filter(resource)) {
             return
         }
-        const nodeID = resource.metadata.name
+        const nodeID = resource.metadata!.name!
         // The node sho
         if (this.visNetworkNodes.get(nodeID)) {
             console.log(`Warning, node alreaded added: ${nodeID}`)
@@ -216,10 +216,10 @@ export class WatcherView<T extends IWatchable> extends Komponent {
         if (!this.filter(resource)) {
             return
         }
-        const nodeId = resource.metadata.name
+        const nodeId = resource.metadata!.name!
         const visNode = this.visNetworkNodes.get(nodeId)
         const visEdge = this.visNetworkEdges.get(nodeId)
-        this.OnChangeHook("MODIFIED", resource, visNode, visEdge)
+        this.OnChangeHook("MODIFIED", resource, visNode!, visEdge!)
         this.redraw = true
     }
 
@@ -228,43 +228,43 @@ export class WatcherView<T extends IWatchable> extends Komponent {
         if (!this.filter(resource)) {
             return
         }
-        const nodeId = resource.metadata.name
+        const nodeId = resource.metadata!.name!
         this.visNetworkNodes.remove(nodeId)
         this.visNetworkEdges.remove(nodeId)
         this.OnChangeHook("DELETED", resource, null, null)
         this.redraw = true
     }
 
-    private calculateEdgeLength(): number {
+    private calculateEdgeLength(): number | undefined {
         return undefined
     }
 }
 
 export class PodWatcherView extends WatcherView<V1Pod> {
-    private previouslySelectedNodeId: string = null
-    private previouslySelectedChildrenNodeIds: string[] = null
+    private previouslySelectedNodeId: string | null = null
+    private previouslySelectedChildrenNodeIds: string[] | null = null
     constructor(containingDiv: HTMLDivElement, centerNodeId: string, watcher: IWatcher<V1Pod>, filter: Filter<V1Pod>) {
-        super(containingDiv, centerNodeId, watcher, filter, (event: WatchableEvents, pod: V1Pod, visNode: vis.Node, visEdge: vis.Edge) => {
+        super(containingDiv, centerNodeId, watcher, filter, (event: WatchableEvents, pod: V1Pod, visNode: vis.Node | null, visEdge: vis.Edge | null) => {
             switch (event) {
                 case "ADDED":
                 case "MODIFIED":
                     switch (pod.status!.phase) {
                         case "Running" || "Succeeded":
-                            visNode.color = "#008000"
+                            visNode!.color = "#008000"
                             break
                         case "Pending":
-                            visNode.color = "#FFFF00"
+                            visNode!.color = "#FFFF00"
                             break
                         default:
-                            visNode.color = "#FF0000"
+                            visNode!.color = "#FF0000"
                     }
             }
         })
         const self = this as IWatcherView<V1Pod>
         self.on("selected", (pod: V1Pod) => {
-            const podNodeId = pod.metadata.name
+            const podNodeId = pod.metadata!.name!
             if (this.previouslySelectedNodeId !== null) {
-                this.previouslySelectedChildrenNodeIds.forEach((containerNodeId) => {
+                this.previouslySelectedChildrenNodeIds!.forEach((containerNodeId) => {
                     this.visNetworkEdges.remove(containerNodeId)
                     this.visNetworkNodes.remove(containerNodeId)
                     this.visNetwork.redraw()
@@ -272,12 +272,12 @@ export class PodWatcherView extends WatcherView<V1Pod> {
             }
             this.previouslySelectedNodeId = podNodeId
             this.previouslySelectedChildrenNodeIds = []
-            pod.spec.containers.forEach((container: V1Container) => {
+            pod.spec!.containers.forEach((container: V1Container) => {
                 const containerName = container.name
-                const containerNodeId = pod.metadata.name + "_" + containerName
+                const containerNodeId = pod.metadata!.name! + "_" + containerName
                 this.visNetworkNodes.add({ id: containerNodeId , label: containerName, shape: "box" })
                 this.visNetworkEdges.add({ id: containerNodeId, to: podNodeId, from: containerNodeId , length: 50 + Math.floor(100)})
-                this.previouslySelectedChildrenNodeIds.push(containerNodeId)
+                this.previouslySelectedChildrenNodeIds!.push(containerNodeId)
                 this.visNetwork.redraw()
             })
 
