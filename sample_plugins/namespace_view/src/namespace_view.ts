@@ -231,7 +231,7 @@ class NamespaceViewer {
         const namespaceColourer = new NamespaceNodeFactory(this.namespaceWatcher, this.podWatcher)
         const namespaceWatcherView = new WatcherView<Kubernetes.V1Namespace>(this.topContainer, this.clusterVisNodeId, this.namespaceWatcher,
             (namespace: Kubernetes.V1Namespace) => true,
-            (event: WatchableEvents, node: Kubernetes.V1Namespace, visNode: vis.Node, visEdge: vis.Edge) => {},
+            (event: WatchableEvents, node: Kubernetes.V1Namespace, visNode: vis.Node | null, visEdge: vis.Edge | null) => {},
             namespaceColourer)
 
         namespaceWatcherView.on("selected", (namespace) => {

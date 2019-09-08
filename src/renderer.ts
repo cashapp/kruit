@@ -10,7 +10,7 @@ async function loadPLugins() {
   const tabGroup = new TabGroup({})
 
   // TODO need to support an override for plugin dir...
-  const base = `${os.homedir()}/.clustermuck/plugins`
+  const base = `${os.homedir()}/.kuitk/plugins`
   const pluginDirs = fs.readdirSync(base)
   const clientFactory = new KubernetesClientFactory()
 
