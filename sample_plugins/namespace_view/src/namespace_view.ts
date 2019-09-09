@@ -1,4 +1,4 @@
-import { IWatcher, Kubernetes, newKubeConfig, PodView, PodWatcherView, WatchableEvents, Watcher, WatcherView, PodHealthColouredNodeFactory } from "kuitk"
+import { IWatcher, Kubernetes, newKubeConfig, PodView, PodWatcherView, WatchableEvents, Watcher, WatcherView, PodHealthTracker } from "kuitk"
 import $ from "jquery"
 import { stringLiteral } from "@babel/types";
 import { V1Namespace } from '@kubernetes/client-node';
@@ -73,7 +73,7 @@ class NamespaceViewer {
         $(this.topContainer).css("height", "100%")
         $(this.bottomContainer).css("height", "0%")
 
-        const namespaceColourer = new PodHealthColouredNodeFactory(
+        const healthTracker = new PodHealthTracker(
             this.namespaceWatcher, 
             this.podWatcher, 
             // ResourceIdentifier<V1Namespace>, this this provides the id to use for a namespace (the name)
@@ -84,12 +84,12 @@ class NamespaceViewer {
         const namespaceWatcherView = new WatcherView<Kubernetes.V1Namespace>(this.topContainer, this.clusterVisNodeId, this.namespaceWatcher,
             (namespace: Kubernetes.V1Namespace) => true,
             (event: WatchableEvents, node: Kubernetes.V1Namespace, visNode: vis.Node | null, visEdge: vis.Edge | null) => {},
-            namespaceColourer)
+            healthTracker)
 
         namespaceWatcherView.on("selected", (namespace) => {
             this.namespaceWatcher.removeAllWatchableEventListeners()
             namespaceWatcherView.destroy()
-            namespaceColourer.destroy()
+            healthTracker.destroy()
             this.showPodWatcherView(namespace)
         })
     }

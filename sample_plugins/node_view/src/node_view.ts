@@ -1,5 +1,5 @@
 import { V1Node, V1Pod } from "@kubernetes/client-node"
-import { IWatcher, Kubernetes, newKubeConfig, PodView, PodWatcherView, WatchableEvents, Watcher, WatcherView } from "kuitk"
+import { IWatcher, Kubernetes, newKubeConfig, PodView, PodWatcherView, WatchableEvents, Watcher, WatcherView, PodHealthTracker } from "kuitk"
 import $ from "jquery"
 
 
@@ -72,6 +72,14 @@ class NodeViewer {
         $(this.topContainer).css("height", "100%")
         $(this.bottomContainer).css("height", "0%")
 
+        const healthTracker = new PodHealthTracker(
+            this.nodeWatcher, 
+            this.podWatcher, 
+            // ResourceIdentifier<V1Namespace>, this this provides the id to use for a namespace (the name)
+            (namespace: Kubernetes.V1Node) => namespace.metadata!.name!,
+            //  PodToResourceMapper this maps pods to namespaces via the id above (the namespace name)
+            (pod: Kubernetes.V1Pod) => pod.spec!.nodeName!
+        ) 
         const nodeWatcherView = new WatcherView<V1Node>(this.topContainer, this.clusterVisNodeId, this.nodeWatcher,
             () => true, (event: WatchableEvents, node: V1Node, visNode: vis.Node | null, visEdge: vis.Edge | null) => {})
 

@@ -38,30 +38,192 @@ export type Filter<T> = (resource: T) => boolean
 export type OnChange<T> = (event: WatchableEvents, resource: T, visNode: vis.Node | null, visEdge: vis.Edge | null) => void
 export type WatcherViewEvent = "selected" | "back"
 
-export interface IWatcherView<T> {
-    on(event: "selected", listener: (resource: T) => void): void
-    on(event: "back", listener: () => void): void
-}
+type ResourceIdentifier<T> = (resource: T) => string
+type PodToResourceMapper<T> = (pod: V1Pod) => string
 
-// INodeFactory defines an interface of node factories which create vis.Nodes. They provide WatcherView with a
-// mechanism for having customer node shapes/colours/sizes.
-// custom nodes (colouring/shapes/size etc).
-export interface INodeFactory<T extends IWatchable> {
-    createNode(resource: T): vis.Node
+
+export type HealthStatus = "HAPPY" | "PENDING" | "SAD" | "UNKOWN"
+
+// IHealthTracker defines an interface for tracking/checking a resource's health.
+export interface IHealthTracker<T> {
+    checkHealth(resource: T): HealthStatus
     on(event: "refresh", listener: (resource: T) => void): void
 }
 
-
 // DefaultNodeFactory creates the default vis.Node instances when another INodeFactory hasn't been supplied.
-class DefaultNodeFactory<T extends IWatchable> implements INodeFactory<T> {
-    public createNode(resource: T): vis.Node {
-        return { id: resource.metadata!.name, label: resource.metadata!.name, shape: "box" }
-    }
+class DefaultHealthTracker<T extends IWatchable> implements IHealthTracker<T> {
+    public checkHealth(): HealthStatus { return "HAPPY" }
 
     public on(event: "refresh", listener: (resource: T) => void) {
         // NOOP only here to satisfy INodeFactory
         return
     }
+}
+
+export class PodHealthTracker<T extends IWatchable> extends EventEmitter implements IHealthTracker<T> {
+    private podsByNameByResourceName: Map<string, Map<string, V1Pod>> = new Map()
+
+    constructor(private resourceWatcher: IWatcher<T>, private podWatcher: IWatcher<V1Pod>,
+                private resourceIdentifier: ResourceIdentifier<T>, private resourceMapper: PodToResourceMapper<T>) {
+        super()
+        //  initial map with all resources that are currently known
+        for (const [resourceName] of this.resourceWatcher.getCached()) {
+            this.podsByNameByResourceName.set(resourceName, new Map<string, V1Pod>())
+        }
+
+        //  fill in the pods
+        for (const [podName, pod] of this.podWatcher.getCached()) {
+            const resourceName = this.resourceMapper(pod)
+            this.podsByNameByResourceName.get(resourceName)!.set(podName, pod)
+        }
+
+        this.addListeners()
+    }
+
+    public destroy() {
+        this.removeListeners()
+    }
+
+    public checkHealth(resource: T): HealthStatus {
+        const resourceName = this.resourceIdentifier(resource)
+        if (!this.podsByNameByResourceName.has(resourceName)) {
+            return "UNKOWN"
+        }
+
+        let happy = 0, pending = 0, sad = 0
+        const podsByName = this.podsByNameByResourceName!.get(resourceName)!
+        for (const [, pod] of podsByName) {
+            switch (pod.status!.phase) {
+                case "Running" || "Succeeded":
+                    happy++
+                    break
+                case "Pending":
+                    pending++
+                    break
+                default:
+                    sad++
+            }
+        }
+
+        if (sad > 0) {
+            return "SAD"
+        }
+
+        if (pending > 0) {
+            return "PENDING"
+        }
+
+        return "HAPPY"
+    }
+
+
+    private emitRefresh(resourceName: string) {
+        //  NB: It's possible that we get pod information before the resource watcher
+        //  knows about the resource.
+        const resource = this.resourceWatcher.getCached().get(resourceName)
+        if (!resource) {
+            return
+        }
+        this.emit("refresh", resource)
+    }
+
+    private addListeners() {
+        this.resourceWatcher.on("ADDED", this.onResourceAdded)
+        this.resourceWatcher.on("DELETED", this.onResourceDeleted)
+        this.podWatcher.on("ADDED", this.onPodAdded)
+        this.podWatcher.on("DELETED", this.onPodDeleted)
+        this.podWatcher.on("MODIFIED", this.onPodModified)
+    }
+
+    private removeListeners() {
+        this.resourceWatcher.removeListener("ADDED", this.onResourceAdded)
+        this.resourceWatcher.removeListener("DELETED", this.onResourceDeleted)
+        this.podWatcher.removeListener("ADDED", this.onPodAdded)
+        this.podWatcher.removeListener("DELETED", this.onPodDeleted)
+        this.podWatcher.removeListener("MODIFIED", this.onPodModified)
+    }
+
+    //  NB(gflarity) Force bind so that can be used/removed from event emitters
+    //  tslint:disable-next-line: member-ordering
+    private onResourceAdded = this._onResourceAdded.bind(this)
+    private _onResourceAdded(resource: T) {
+        const resourceName = this.resourceIdentifier(resource)
+        if (this.podsByNameByResourceName.has(resourceName)) {
+            console.log("resource already exists in podsByNameByResourceName, this is unexpected")
+            return
+        }
+        this.podsByNameByResourceName.set(resourceName, new Map<string, V1Pod>())
+        this.emit("refresh", resource)
+    }
+
+
+    //  NB(gflarity) Force bind so that can be used/removed from event emitters
+    //  tslint:disable-next-line: member-ordering
+    private onResourceDeleted = this._onResourceDeleted.bind(this)
+    private _onResourceDeleted(resource: T) {
+        const resourceName = this.resourceIdentifier(resource)
+        if (!this.podsByNameByResourceName.has(resourceName)) {
+            console.log(`resource ${resourceName} does not exist in podsByNameByResourceName, this is unexpected`)
+            return
+        }
+        this.podsByNameByResourceName.delete(resourceName)
+        this.emit("refresh", resource)
+    }
+
+    //  NB(gflarity) Force bind so that can be used/removed from event emitters
+    //  tslint:disable-next-line: member-ordering
+    private onPodAdded = this._onPodAdded.bind(this)
+    private _onPodAdded(pod: V1Pod) {
+        const resourceName = this.resourceMapper(pod)
+        if (!this.podsByNameByResourceName.has(resourceName)) {
+            console.log(`resource ${resourceName} does not exist in podsByNameByResourceName, this is unexpected`)
+            this.podsByNameByResourceName.set(resourceName, new Map<string, V1Pod>())
+        }
+        this.podsByNameByResourceName.get(resourceName)!.set(resourceName, pod)
+        this.emitRefresh(resourceName)
+    }
+
+    //  NB(gflarity) Force bind so that can be used/removed from event emitters
+    //  tslint:disable-next-line: member-ordering
+    private onPodDeleted = this._onPodDeleted.bind(this)
+    private _onPodDeleted(pod: V1Pod) {
+        const resourceName = this.resourceMapper(pod)
+        if (!this.podsByNameByResourceName.has(resourceName)) {
+            console.log(`resource ${resourceName} does not exist in podsByNameByResourceName, this is unexpected`)
+            this.podsByNameByResourceName.set(resourceName, new Map<string, V1Pod>())
+        }
+
+        const podName = pod.metadata!.name!
+        if (!this.podsByNameByResourceName.get(resourceName)!.has(podName)) {
+            console.log(`pod ${podName} does not exist in podsByNameByResourceName, this is unexpected`)             
+            return
+        }
+        this.podsByNameByResourceName.get(resourceName)!.delete(podName!)
+        this.emitRefresh(resourceName)
+    }
+
+    //  NB(gflarity) Force bind so that can be used/removed from event emitters
+    //  tslint:disable-next-line: member-ordering
+    private onPodModified = this._onPodModified.bind(this)
+    private _onPodModified(pod: V1Pod) {
+        const resourceName = this.resourceMapper(pod)
+        if (!this.podsByNameByResourceName.has(resourceName)) {
+            console.log(`resource ${resourceName} does not exist in podsByNameByResourceName, this is unexpected`)
+            this.podsByNameByResourceName.set(resourceName, new Map<string, V1Pod>())
+        }
+
+        const podName = pod.metadata!.name
+        if (!this.podsByNameByResourceName.get(resourceName!)!.has(podName!)) {
+            console.log(`pod ${podName} does not exist in podsByNameByResourceName, this is unexpected`)
+        }
+        this.podsByNameByResourceName.get(resourceName!)!.set(podName!, pod)
+        this.emitRefresh(resourceName)
+    }
+}
+
+export interface IWatcherView<T> {
+    on(event: "selected", listener: (resource: T) => void): void
+    on(event: "back", listener: () => void): void
 }
 
 export class WatcherView<T extends IWatchable> extends Komponent {
@@ -80,7 +242,7 @@ export class WatcherView<T extends IWatchable> extends Komponent {
                 private watcher: IWatcher<T>,
                 private filter: Filter<T>,
                 private OnChangeHook: OnChange<T>,
-                private nodeFactory: INodeFactory<T> = new DefaultNodeFactory<T>()) {
+                private healthTracker: IHealthTracker<T> = new DefaultHealthTracker<T>()) {
             super()
 
             const physics = {
@@ -149,7 +311,7 @@ export class WatcherView<T extends IWatchable> extends Komponent {
             const edges = new Array<vis.Edge>()
             resources.forEach((resource) => {
                 const nodeID = resource.metadata!.name
-                const visNode: vis.Node = this.nodeFactory.createNode(resource)
+                const visNode: vis.Node = this.createNode(resource)
                 const visEdge: vis.Edge = { to: centerNodeId, from: nodeID }
                 this.OnChangeHook("ADDED", resource, visNode, visEdge)
                 this.nodeUpdateQueue.push(visNode)
@@ -168,8 +330,8 @@ export class WatcherView<T extends IWatchable> extends Komponent {
 
             this.registerListeners()
 
-            nodeFactory.on("refresh", (namespace) => {
-                const visNode: vis.Node = this.nodeFactory.createNode(namespace)
+            this.healthTracker.on("refresh", (resource) => {
+                const visNode: vis.Node = this.createNode(resource)
                 this.nodeUpdateQueue.push(visNode)
                 this.redraw = true
             })
@@ -180,6 +342,23 @@ export class WatcherView<T extends IWatchable> extends Komponent {
         this.removeAllListeners()
         clearInterval(this.redrawIntervalId)
     }
+
+    public createNode(resource: T): vis.Node {
+        const health = this.healthTracker.checkHealth(resource)
+        let colour = ""
+        if (health === "UNKOWN") {
+            //  TODO fix unknown colour
+            colour = "#111111"
+        } else if (health === "SAD") {
+            colour = "#FF0000"
+        } else if (health === "PENDING") {
+            colour = "#FFFF00"
+        } else {
+            // happy!
+            colour = "#008000"
+        }
+        return { id: resource.metadata!.name, label: resource.metadata!.name, shape: "box", color: colour }
+    }
 
     private registerListeners() {
         this.watcher.on("ADDED", this.onAdded.bind(this))
@@ -203,7 +382,7 @@ export class WatcherView<T extends IWatchable> extends Komponent {
         if (this.visNetworkNodes.get(nodeID)) {
             console.log(`Warning, node alreaded added: ${nodeID}`)
         }
-        const visNode: vis.Node = this.nodeFactory.createNode(resource)
+        const visNode: vis.Node = this.createNode(resource)
         const visEdge: vis.Edge = { to: this.centerNodeId, from: nodeID, length: this.calculateEdgeLength() }
         this.OnChangeHook("ADDED", resource, visNode, visEdge)
         this.nodeUpdateQueue.push(visNode)
@@ -284,174 +463,5 @@ export class PodWatcherView extends WatcherView<V1Pod> {
         })
     }
 }
-
-type ResourceIdentifier<T> = (resource: T) => string
-type PodToResourceMapper<T> = (pod: V1Pod) => string
-
-export class PodHealthColouredNodeFactory<T extends IWatchable> extends EventEmitter implements INodeFactory<T> {
-    private podsByNameByResourceName: Map<string, Map<string, V1Pod>> = new Map()
-
-    constructor(private resourceWatcher: IWatcher<T>, private podWatcher: IWatcher<V1Pod>,
-                private resourceIdentifier: ResourceIdentifier<T>, private resourceMapper: PodToResourceMapper<T>) {
-        super()
-        //  initial map with all resources that are currently known
-        for (const [resourceName] of this.resourceWatcher.getCached()) {
-            this.podsByNameByResourceName.set(resourceName, new Map<string, V1Pod>())
-        }
-
-        //  fill in the pods
-        for (const [podName, pod] of this.podWatcher.getCached()) {
-            const resource = pod.metadata!.namespace!
-            this.podsByNameByResourceName.get(resource)!.set(podName, pod)
-        }
-
-        this.addListeners()
-    }
-
-    public createNode(resource: T): vis.Node {
-        const resourceName = this.resourceIdentifier(resource)
-        const {pending, sad, unknown} = this.healthCheck(resourceName)
-        let colour = "#008000"
-        if (unknown === true) {
-            //  TODO fix unknown colour
-            colour = "#111111"
-        } else if (sad > 0) {
-            colour = "#FF0000"
-        } else if (pending > 0) {
-            colour = "#FFFF00"
-        }
-        return { id: resource.metadata!.name, label: resource.metadata!.name, shape: "box", color: colour }
-    }
-
-    public destroy() {
-        this.removeListeners()
-    }
-
-    private healthCheck(resourceName: string): {happy: number, pending: number, sad: number, unknown: boolean} {
-        if (!this.podsByNameByResourceName.has(resourceName)) {
-            return { happy: 0, pending: 0, sad: 0, unknown: true}
-        }
-
-        let happy = 0, pending = 0, sad = 0
-        const podsByName = this.podsByNameByResourceName!.get(resourceName)!
-        for (const [, pod] of podsByName) {
-            switch (pod.status!.phase) {
-                case "Running" || "Succeeded":
-                    happy++
-                    break
-                case "Pending":
-                    pending++
-                    break
-                default:
-                    sad++
-            }
-        }
-        return { happy, pending, sad, unknown: false }
-    }
-
-    private emitRefresh(resourceName: string) {
-        //  NB: It's possible that we get pod information before the resource watcher
-        //  knows about the resource.
-        const resource = this.resourceWatcher.getCached().get(resourceName)
-        if (!resource) {
-            return
-        }
-        this.emit("refresh", resource)
-    }
-
-    private addListeners() {
-        this.resourceWatcher.on("ADDED", this.onResourceAdded)
-        this.resourceWatcher.on("DELETED", this.onResourceDeleted)
-        this.podWatcher.on("ADDED", this.onPodAdded)
-        this.podWatcher.on("DELETED", this.onPodDeleted)
-        this.podWatcher.on("MODIFIED", this.onPodModified)
-    }
-
-    private removeListeners() {
-        this.resourceWatcher.removeListener("ADDED", this.onResourceAdded)
-        this.resourceWatcher.removeListener("DELETED", this.onResourceDeleted)
-        this.podWatcher.removeListener("ADDED", this.onPodAdded)
-        this.podWatcher.removeListener("DELETED", this.onPodDeleted)
-        this.podWatcher.removeListener("MODIFIED", this.onPodModified)
-    }
-
-    //  NB(gflarity) Force bind so that can be used/removed from event emitters
-    //  tslint:disable-next-line: member-ordering
-    private onResourceAdded = this._onResourceAdded.bind(this)
-    private _onResourceAdded(resource: T) {
-        const resourceName = this.resourceIdentifier(resource)
-        if (this.podsByNameByResourceName.has(resourceName)) {
-            console.log("resource already exists in podsByNameByResourceName, this is unexpected")
-            return
-        }
-        this.podsByNameByResourceName.set(resource.metadata!.name!, new Map<string, V1Pod>())
-        this.emit("refresh", resource)
-    }
-
-
-    //  NB(gflarity) Force bind so that can be used/removed from event emitters
-    //  tslint:disable-next-line: member-ordering
-    private onResourceDeleted = this._onResourceDeleted.bind(this)
-    private _onResourceDeleted(resource: T) {
-        const resourceName = this.resourceIdentifier(resource)
-        if (!this.podsByNameByResourceName.has(resourceName)) {
-            console.log(`resource ${resourceName} does not exist in podsByNameByResourceName, this is unexpected`)
-            return
-        }
-        this.podsByNameByResourceName.delete(resource.metadata!.name!)
-        this.emit("refresh", resource)
-    }
-
-    //  NB(gflarity) Force bind so that can be used/removed from event emitters
-    //  tslint:disable-next-line: member-ordering
-    private onPodAdded = this._onPodAdded.bind(this)
-    private _onPodAdded(pod: V1Pod) {
-        const resourceName = this.resourceMapper(pod)
-        if (!this.podsByNameByResourceName.has(resourceName)) {
-            console.log(`resource ${resourceName} does not exist in podsByNameByResourceName, this is unexpected`)
-            this.podsByNameByResourceName.set(resourceName, new Map<string, V1Pod>())
-        }
-        this.podsByNameByResourceName.get(resourceName)!.set(pod.metadata!.name!, pod)
-        this.emitRefresh(resourceName)
-    }
-
-    //  NB(gflarity) Force bind so that can be used/removed from event emitters
-    //  tslint:disable-next-line: member-ordering
-    private onPodDeleted = this._onPodDeleted.bind(this)
-    private _onPodDeleted(pod: V1Pod) {
-        const resourceName = this.resourceMapper(pod)
-        if (!this.podsByNameByResourceName.has(resourceName)) {
-            console.log(`resource ${resourceName} does not exist in podsByNameByResourceName, this is unexpected`)
-            this.podsByNameByResourceName.set(resourceName, new Map<string, V1Pod>())
-        }
-
-        const podName = pod.metadata!.name!
-        if (!this.podsByNameByResourceName.get(resourceName)!.has(podName)) {
-            console.log(`pod ${podName} does not exist in podsByNameByResourceName, this is unexpected`)             
-            return
-        }
-        this.podsByNameByResourceName.get(resourceName)!.delete(podName!)
-        this.emitRefresh(resourceName)
-    }
-
-    //  NB(gflarity) Force bind so that can be used/removed from event emitters
-    //  tslint:disable-next-line: member-ordering
-    private onPodModified = this._onPodModified.bind(this)
-    private _onPodModified(pod: V1Pod) {
-        const resourceName = this.resourceMapper(pod)
-        if (!this.podsByNameByResourceName.has(resourceName)) {
-            console.log(`resource ${resourceName} does not exist in podsByNameByResourceName, this is unexpected`)
-            this.podsByNameByResourceName.set(resourceName, new Map<string, V1Pod>())
-        }
-
-        const podName = pod.metadata!.name
-        if (!this.podsByNameByResourceName.get(resourceName!)!.has(podName!)) {
-            console.log(`pod ${podName} does not exist in podsByNameByResourceName, this is unexpected`)
-        }
-        this.podsByNameByResourceName.get(resourceName!)!.set(podName!, pod)
-        this.emitRefresh(resourceName)
-    }
-}
-
 
 
