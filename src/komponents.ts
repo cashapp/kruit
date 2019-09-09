@@ -288,7 +288,7 @@ export class PodWatcherView extends WatcherView<V1Pod> {
 type ResourceIdentifier<T> = (resource: T) => string
 type PodToResourceMapper<T> = (pod: V1Pod) => string
 
-export class PodHealthAggregator<T extends IWatchable> extends EventEmitter implements INodeFactory<T> {
+export class PodHealthColouredNodeFactory<T extends IWatchable> extends EventEmitter implements INodeFactory<T> {
     private podsByNameByResourceName: Map<string, Map<string, V1Pod>> = new Map()
 
     constructor(private resourceWatcher: IWatcher<T>, private podWatcher: IWatcher<V1Pod>,
@@ -452,3 +452,6 @@ export class PodHealthAggregator<T extends IWatchable> extends EventEmitte
         this.emitRefresh(resourceName)
     }
 }
+
+
+
