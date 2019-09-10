@@ -35,7 +35,6 @@ export class PodView extends Komponent {
 }
 
 export type Filter<T> = (resource: T) => boolean
-export type OnChange<T> = (event: WatchableEvents, resource: T, visNode: vis.Node | null, visEdge: vis.Edge | null) => void
 export type WatcherViewEvent = "selected" | "back"
 
 type ResourceIdentifier<T> = (resource: T) => string
@@ -241,7 +240,6 @@ export class WatcherView<T extends IWatchable> extends Komponent {
     constructor(private container: HTMLDivElement, private centerNodeId: string,
                 private watcher: IWatcher<T>,
                 private filter: Filter<T>,
-                private OnChangeHook: OnChange<T>,
                 private healthTracker: IHealthTracker<T> = new DefaultHealthTracker<T>()) {
             super()
 
@@ -314,7 +312,6 @@ export class WatcherView<T extends IWatchable> extends Komponent {
                 const health = this.healthTracker.checkHealth(resource)
                 const visNode: vis.Node = this.createNode(resource, health)
                 const visEdge: vis.Edge = { to: centerNodeId, from: nodeID }
-                this.OnChangeHook("ADDED", resource, visNode, visEdge)
                 this.nodeUpdateQueue.push(visNode)
                 this.edgeUpsertQueue.push(visEdge)
             })
@@ -363,13 +360,11 @@ export class WatcherView<T extends IWatchable> extends Komponent {
 
     private registerListeners() {
         this.watcher.on("ADDED", this.onAdded.bind(this))
-        this.watcher.on("MODIFIED", this.onModified.bind(this))
         this.watcher.on("DELETED", this.onDeleted.bind(this))
     }
 
     private unregisterListeners() {
         this.watcher.removeListener("ADDED", this.onAdded)
-        this.watcher.removeListener("MODIFIED", this.onModified)
         this.watcher.removeListener("DELETED", this.onDeleted)
     }
 
@@ -386,21 +381,8 @@ export class WatcherView<T extends IWatchable> extends Komponent {
         const health = this.healthTracker.checkHealth(resource)
         const visNode: vis.Node = this.createNode(resource, health)
         const visEdge: vis.Edge = { to: this.centerNodeId, from: nodeID, length: this.calculateEdgeLength() }
-        this.OnChangeHook("ADDED", resource, visNode, visEdge)
         this.nodeUpdateQueue.push(visNode)
         this.edgeUpsertQueue.push(visEdge)
-        this.redraw = true
-    }
-
-    private onModified(resource: T) {
-        // is this a pod we're interested in?
-        if (!this.filter(resource)) {
-            return
-        }
-        const nodeId = resource.metadata!.name!
-        const visNode = this.visNetworkNodes.get(nodeId)
-        const visEdge = this.visNetworkEdges.get(nodeId)
-        this.OnChangeHook("MODIFIED", resource, visNode!, visEdge!)
         this.redraw = true
     }
 
@@ -412,7 +394,6 @@ export class WatcherView<T extends IWatchable> extends Komponent {
         const nodeId = resource.metadata!.name!
         this.visNetworkNodes.remove(nodeId)
         this.visNetworkEdges.remove(nodeId)
-        this.OnChangeHook("DELETED", resource, null, null)
         this.redraw = true
     }
 
@@ -421,26 +402,12 @@ export class WatcherView<T extends IWatchable> extends Komponent {
     }
 }
 
+
 export class PodWatcherView extends WatcherView<V1Pod> {
     private previouslySelectedNodeId: string | null = null
     private previouslySelectedChildrenNodeIds: string[] | null = null
     constructor(containingDiv: HTMLDivElement, centerNodeId: string, watcher: IWatcher<V1Pod>, filter: Filter<V1Pod>) {
-        super(containingDiv, centerNodeId, watcher, filter, (event: WatchableEvents, pod: V1Pod, visNode: vis.Node | null, visEdge: vis.Edge | null) => {
-            switch (event) {
-                case "ADDED":
-                case "MODIFIED":
-                    switch (pod.status!.phase) {
-                        case "Running" || "Succeeded":
-                            visNode!.color = "#008000"
-                            break
-                        case "Pending":
-                            visNode!.color = "#FFFF00"
-                            break
-                        default:
-                            visNode!.color = "#FF0000"
-                    }
-            }
-        })
+        super(containingDiv, centerNodeId, watcher, filter)
         const self = this as IWatcherView<V1Pod>
         self.on("selected", (pod: V1Pod) => {
             const podNodeId = pod.metadata!.name!

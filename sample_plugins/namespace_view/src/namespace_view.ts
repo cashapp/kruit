@@ -82,9 +82,7 @@ class NamespaceViewer {
             (pod: Kubernetes.V1Pod) => pod.metadata!.namespace!
         ) 
         const namespaceWatcherView = new WatcherView<Kubernetes.V1Namespace>(this.topContainer, this.clusterVisNodeId, this.namespaceWatcher,
-            (namespace: Kubernetes.V1Namespace) => true,
-            (event: WatchableEvents, node: Kubernetes.V1Namespace, visNode: vis.Node | null, visEdge: vis.Edge | null) => {},
-            healthTracker)
+            (namespace: Kubernetes.V1Namespace) => true, healthTracker)
 
         namespaceWatcherView.on("selected", (namespace) => {
             this.namespaceWatcher.removeAllWatchableEventListeners()

@@ -81,7 +81,7 @@ class NodeViewer {
             (pod: Kubernetes.V1Pod) => pod.spec!.nodeName!
         ) 
         const nodeWatcherView = new WatcherView<V1Node>(this.topContainer, this.clusterVisNodeId, this.nodeWatcher,
-            () => true, (event: WatchableEvents, node: V1Node, visNode: vis.Node | null, visEdge: vis.Edge | null) => {})
+            () => true)
 
         nodeWatcherView.on("selected", (namespace) => {
             this.nodeWatcher.removeAllWatchableEventListeners()
