@@ -311,7 +311,8 @@ export class WatcherView<T extends IWatchable> extends Komponent {
             const edges = new Array<vis.Edge>()
             resources.forEach((resource) => {
                 const nodeID = resource.metadata!.name
-                const visNode: vis.Node = this.createNode(resource)
+                const health = this.healthTracker.checkHealth(resource)
+                const visNode: vis.Node = this.createNode(resource, health)
                 const visEdge: vis.Edge = { to: centerNodeId, from: nodeID }
                 this.OnChangeHook("ADDED", resource, visNode, visEdge)
                 this.nodeUpdateQueue.push(visNode)
@@ -331,7 +332,8 @@ export class WatcherView<T extends IWatchable> extends Komponent {
             this.registerListeners()
 
             this.healthTracker.on("refresh", (resource) => {
-                const visNode: vis.Node = this.createNode(resource)
+                const health = this.healthTracker.checkHealth(resource)
+                const visNode: vis.Node = this.createNode(resource, health)
                 this.nodeUpdateQueue.push(visNode)
                 this.redraw = true
             })
@@ -343,8 +345,7 @@ export class WatcherView<T extends IWatchable> extends Komponent {
         clearInterval(this.redrawIntervalId)
     }
 
-    public createNode(resource: T): vis.Node {
-        const health = this.healthTracker.checkHealth(resource)
+    public createNode(resource: T, health: HealthStatus): vis.Node {
         let colour = ""
         if (health === "UNKOWN") {
             //  TODO fix unknown colour
@@ -382,7 +383,8 @@ export class WatcherView<T extends IWatchable> extends Komponent {
         if (this.visNetworkNodes.get(nodeID)) {
             console.log(`Warning, node alreaded added: ${nodeID}`)
         }
-        const visNode: vis.Node = this.createNode(resource)
+        const health = this.healthTracker.checkHealth(resource)
+        const visNode: vis.Node = this.createNode(resource, health)
         const visEdge: vis.Edge = { to: this.centerNodeId, from: nodeID, length: this.calculateEdgeLength() }
         this.OnChangeHook("ADDED", resource, visNode, visEdge)
         this.nodeUpdateQueue.push(visNode)
