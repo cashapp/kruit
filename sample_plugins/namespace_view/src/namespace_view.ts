@@ -1,4 +1,4 @@
-import { IWatcher, Kubernetes, newKubeConfig, PodView, PodWatcherView, WatchableEvents, Watcher, WatcherView, PodHealthTracker } from "kuitk"
+import { IWatcher, Kubernetes, newKubeConfig, PodView, PodWatcherView, WatchableEvents, Watcher, WatcherView, ResourcePodHealthTracker } from "kuitk"
 import $ from "jquery"
 import { stringLiteral } from "@babel/types";
 import { V1Namespace } from '@kubernetes/client-node';
@@ -73,7 +73,7 @@ class NamespaceViewer {
         $(this.topContainer).css("height", "100%")
         $(this.bottomContainer).css("height", "0%")
 
-        const healthTracker = new PodHealthTracker(
+        const healthTracker = new ResourcePodHealthTracker(
             this.namespaceWatcher, 
             this.podWatcher, 
             // ResourceIdentifier<V1Namespace>, this this provides the id to use for a namespace (the name)

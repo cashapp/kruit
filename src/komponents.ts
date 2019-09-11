@@ -1,4 +1,4 @@
-import { KubeConfig, V1Container, V1Namespace, V1Node, V1Pod } from "@kubernetes/client-node"
+import { KubeConfig, V1Container, V1Pod } from "@kubernetes/client-node"
 import { EventEmitter } from "events"
 import * as vis from "vis"
 import { PodWrapper } from "./kubernetes/pod_wrapper"
@@ -59,7 +59,7 @@ class DefaultHealthTracker<T extends IWatchable> implements IHealthTracker<T> {
     }
 }
 
-export class PodHealthTracker<T extends IWatchable> extends EventEmitter implements IHealthTracker<T> {
+export class ResourcePodHealthTracker<T extends IWatchable> extends EventEmitter implements IHealthTracker<T> {
     private podsByNameByResourceName: Map<string, Map<string, V1Pod>> = new Map()
 
     constructor(private resourceWatcher: IWatcher<T>, private podWatcher: IWatcher<V1Pod>,
@@ -407,7 +407,8 @@ export class PodWatcherView extends WatcherView<V1Pod> {
     private previouslySelectedNodeId: string | null = null
     private previouslySelectedChildrenNodeIds: string[] | null = null
     constructor(containingDiv: HTMLDivElement, centerNodeId: string, watcher: IWatcher<V1Pod>, filter: Filter<V1Pod>) {
-        super(containingDiv, centerNodeId, watcher, filter)
+        super(containingDiv, centerNodeId, watcher, filter, new ResourcePodHealthTracker(
+            watcher, watcher, (namespace: V1Pod) => namespace.metadata!.name!, (pod: V1Pod) => pod.metadata!.name!))
         const self = this as IWatcherView<V1Pod>
         self.on("selected", (pod: V1Pod) => {
             const podNodeId = pod.metadata!.name!
