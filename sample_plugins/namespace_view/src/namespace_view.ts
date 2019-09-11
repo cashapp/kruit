@@ -89,8 +89,8 @@ class NamespaceViewer {
 
         namespaceWatcherView.on("selected", (namespace) => {
             this.namespaceWatcher.removeAllWatchableEventListeners()
-            namespaceWatcherView.destroy()
             healthTracker.destroy()
+            namespaceWatcherView.destroy()
             this.showPodWatcherView(namespace)
         })
     }

@@ -17,10 +17,10 @@ export class PodWrapper {
         this.pod = pod
     }
 
-    public async followLogs(): Promise<Readable> {
+    public async followLogs(containerName: string): Promise<Readable> {
         return new Promise<Readable>((resolve, reject) => {
             const cluster = this.kubeConfig.getCurrentCluster()
-            const url = cluster.server + `/api/v1/namespaces/${this.pod.metadata!.namespace}/pods/${this.pod.metadata!.name}/log`
+            const url = cluster.server + `/api/v1/namespaces/${this.pod.metadata!.namespace}/pods/${this.pod.metadata!.name}/log?container=${containerName}`
             const headerParams: any = {}
             const reqOpts: request.OptionsWithUri = {
                 method: "GET",

@@ -1,4 +1,4 @@
-import { KubeConfig, V1Container, V1Pod } from "@kubernetes/client-node"
+import { KubeConfig, V1Container, V1Pod, dumpYaml } from "@kubernetes/client-node"
 import { EventEmitter } from "events"
 import * as vis from "vis"
 import { PodWrapper } from "./kubernetes/pod_wrapper"
@@ -9,24 +9,30 @@ export abstract class Komponent extends EventEmitter {}
 
 export class PodView extends Komponent {
 
-    private tabs = new Tabs(this.container)
+    private tabs = new Tabs(this.divContainer)
 
-    constructor(private kubeConfig: KubeConfig, private pod: V1Pod, private container: HTMLDivElement) {
+    constructor(private kubeConfig: KubeConfig, private pod: V1Pod, private divContainer: HTMLDivElement) {
         super()
-        const logTab = this.tabs.addTab(`${pod!.metadata!.name} logs`)
-        const wrappedProd = new PodWrapper(this.kubeConfig, pod!)
-        wrappedProd.followLogs().then((stream) => {
-            stream.on("data", (line) => {
-                logTab.addText(line + "\n")
-            })
 
-            // when the tab goes away the stream should stop writing to it
-            logTab.on("destroy", () => {
-                stream.destroy()
+        const wrappedProd = new PodWrapper(this.kubeConfig, pod!)
+        const logTab = this.tabs.addTab(`yaml`)
+        logTab.addText(dumpYaml(pod))
+
+        for (const container of pod.spec.containers) {
+            const logTab = this.tabs.addTab(`${container.name} logs`)
+            wrappedProd.followLogs(container.name).then((stream) => {
+                stream.on("data", (line) => {
+                    logTab.addText(line + "\n")
+                })
+
+                // when the tab goes away the stream should stop writing to it
+                logTab.on("destroy", () => {
+                    stream.destroy()
+                })
+            }).catch((err) => {
+                console.log(err)
             })
-        }).catch((err) => {
-            console.log(err)
-        })
+        }
     }
 
     public destroy() {
@@ -65,14 +71,23 @@ export class ResourcePodHealthTracker<T extends IWatchable> extends EventE
     constructor(private resourceWatcher: IWatcher<T>, private podWatcher: IWatcher<V1Pod>,
                 private resourceIdentifier: ResourceIdentifier<T>, private resourceMapper: PodToResourceMapper<T>) {
         super()
-        //  initial map with all resources that are currently known
+
+        //  initial map with all resources that are currently known, we might not know about the pods yet
+        //  it's also possible the resources are "empty" in that no pods will map to them below
         for (const [resourceName] of this.resourceWatcher.getCached()) {
-            this.podsByNameByResourceName.set(resourceName, new Map<string, V1Pod>())
+            this.podsByNameByResourceName.set(resourceName, new Map<string, V1Pod>())
         }
 
-        //  fill in the pods
+        //  fill in the pods
         for (const [podName, pod] of this.podWatcher.getCached()) {
             const resourceName = this.resourceMapper(pod)
+            if (resourceName === undefined) {
+                continue
+            }
+
+            if (!this.podsByNameByResourceName.has(resourceName)) {
+                this.podsByNameByResourceName.set(resourceName, new Map<string, V1Pod>())
+            }
             this.podsByNameByResourceName.get(resourceName)!.set(podName, pod)
         }
 
@@ -171,6 +186,9 @@ export class ResourcePodHealthTracker<T extends IWatchable> extends EventE
     private onPodAdded = this._onPodAdded.bind(this)
     private _onPodAdded(pod: V1Pod) {
         const resourceName = this.resourceMapper(pod)
+        if (resourceName === undefined) {
+            return
+        }
         if (!this.podsByNameByResourceName.has(resourceName)) {
             this.podsByNameByResourceName.set(resourceName, new Map<string, V1Pod>())
         }
@@ -184,6 +202,9 @@ export class ResourcePodHealthTracker<T extends IWatchable> extends EventE
     private onPodDeleted = this._onPodDeleted.bind(this)
     private _onPodDeleted(pod: V1Pod) {
         const resourceName = this.resourceMapper(pod)
+        if (resourceName === undefined) {
+            return
+        }
         if (!this.podsByNameByResourceName.has(resourceName)) {
             this.podsByNameByResourceName.set(resourceName, new Map<string, V1Pod>())
         }
@@ -201,6 +222,9 @@ export class ResourcePodHealthTracker<T extends IWatchable> extends EventE
     private onPodModified = this._onPodModified.bind(this)
     private _onPodModified(pod: V1Pod) {
         const resourceName = this.resourceMapper(pod)
+        if (resourceName === undefined) {
+            return
+        }
         if (!this.podsByNameByResourceName.has(resourceName)) {
             this.podsByNameByResourceName.set(resourceName, new Map<string, V1Pod>())
         }
@@ -290,6 +314,7 @@ export class WatcherView<T extends IWatchable> extends Komponent {
                 if (selectedNetworkNodeId === this.centerNodeId) {
                     this.emit("back")
                 } else {
+                    console.log(`selected: ${selectedNetworkNodeId}`)
                     this.emit("selected", this.watcher.getCached().get(selectedNetworkNodeId))
                 }
             })
@@ -331,7 +356,6 @@ export class WatcherView<T extends IWatchable> extends Komponent {
         }
         return { id: resource.metadata!.name, label: resource.metadata!.name, shape: "box", color: colour }
     }
-
 
     private doRedraw() {
         // if redraw hasn' been request, shortcircuit
@@ -431,6 +455,11 @@ export class PodWatcherView extends WatcherView<V1Pod> {
             watcher, watcher, (namespace: V1Pod) => namespace.metadata!.name!, (pod: V1Pod) => pod.metadata!.name!))
         const self = this as IWatcherView<V1Pod>
         self.on("selected", (pod: V1Pod) => {
+            // sometimes if you drag the graph instead of clicking it gives a selected
+            if (pod === undefined) {
+                return
+            }
+
             const podNodeId = pod.metadata!.name!
             if (this.previouslySelectedNodeId !== null) {
                 this.previouslySelectedChildrenNodeIds!.forEach((containerNodeId) => {

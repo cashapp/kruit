@@ -62,7 +62,6 @@ class NodeViewer {
         podWatcherView.on("selected", (pod) => {
             if (this.podView) {
                 this.podView.destroy()
-                this.podView = undefined
             }
             this.podView = new PodView(this.kubeConfig, pod, this.bottomContainer)
         })
@@ -85,6 +84,7 @@ class NodeViewer {
 
         nodeWatcherView.on("selected", (namespace) => {
             this.nodeWatcher.removeAllWatchableEventListeners()
+            healthTracker.destroy()
             nodeWatcherView.destroy()
             this.showPodWatcherView(namespace)
         })
