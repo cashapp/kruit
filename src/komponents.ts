@@ -470,10 +470,22 @@ export class PodWatcherView extends WatcherView<V1Pod> {
             }
             this.previouslySelectedNodeId = podNodeId
             this.previouslySelectedChildrenNodeIds = []
-            pod.spec!.containers.forEach((container: V1Container) => {
+            pod.spec!.containers.forEach((container: V1Container) => {                
                 const containerName = container.name
+                let colour = ""
+                for (const status of pod.status.containerStatuses) {
+                    if (status.name !== containerName) {
+                        continue
+                    }
+                    if (status.state.running){
+                        colour = "#008000"
+                    } else {
+                        colour = "#FF0000"
+                    }
+                    break
+                }
                 const containerNodeId = pod.metadata!.name! + "_" + containerName
-                this.visNetworkNodes.add({ id: containerNodeId , label: containerName, shape: "box" })
+                this.visNetworkNodes.add({ id: containerNodeId , label: containerName, shape: "box", color: colour })
                 this.visNetworkEdges.add({ id: containerNodeId, to: podNodeId, from: containerNodeId , length: 50 + Math.floor(100)})
                 this.previouslySelectedChildrenNodeIds!.push(containerNodeId)
                 this.visNetwork.redraw()
