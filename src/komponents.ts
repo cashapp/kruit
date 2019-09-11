@@ -34,7 +34,7 @@ export class PodView extends Komponent {
     }
 }
 
-export type Filter<T> = (resource: T) => boolean
+export type Filter<T> = (resource: T, health: HealthStatus) => boolean
 export type WatcherViewEvent = "selected" | "back"
 
 type ResourceIdentifier<T> = (resource: T) => string
@@ -115,7 +115,6 @@ export class ResourcePodHealthTracker<T extends IWatchable> extends EventE
         return "HAPPY"
     }
 
-
     private emitRefresh(resourceName: string) {
         //  NB: It's possible that we get pod information before the resource watcher
         //  knows about the resource.
@@ -148,7 +147,6 @@ export class ResourcePodHealthTracker<T extends IWatchable> extends EventE
     private _onResourceAdded(resource: T) {
         const resourceName = this.resourceIdentifier(resource)
         if (this.podsByNameByResourceName.has(resourceName)) {
-            console.log("resource already exists in podsByNameByResourceName, this is unexpected")
             return
         }
         this.podsByNameByResourceName.set(resourceName, new Map<string, V1Pod>())
@@ -162,7 +160,6 @@ export class ResourcePodHealthTracker<T extends IWatchable> extends EventE
     private _onResourceDeleted(resource: T) {
         const resourceName = this.resourceIdentifier(resource)
         if (!this.podsByNameByResourceName.has(resourceName)) {
-            console.log(`resource ${resourceName} does not exist in podsByNameByResourceName, this is unexpected`)
             return
         }
         this.podsByNameByResourceName.delete(resourceName)
@@ -175,10 +172,10 @@ export class ResourcePodHealthTracker<T extends IWatchable> extends EventE
     private _onPodAdded(pod: V1Pod) {
         const resourceName = this.resourceMapper(pod)
         if (!this.podsByNameByResourceName.has(resourceName)) {
-            console.log(`resource ${resourceName} does not exist in podsByNameByResourceName, this is unexpected`)
             this.podsByNameByResourceName.set(resourceName, new Map<string, V1Pod>())
         }
-        this.podsByNameByResourceName.get(resourceName)!.set(resourceName, pod)
+        const podName = pod.metadata.name
+        this.podsByNameByResourceName.get(resourceName)!.set(podName, pod)
         this.emitRefresh(resourceName)
     }
 
@@ -188,13 +185,11 @@ export class ResourcePodHealthTracker<T extends IWatchable> extends EventE
     private _onPodDeleted(pod: V1Pod) {
         const resourceName = this.resourceMapper(pod)
         if (!this.podsByNameByResourceName.has(resourceName)) {
-            console.log(`resource ${resourceName} does not exist in podsByNameByResourceName, this is unexpected`)
             this.podsByNameByResourceName.set(resourceName, new Map<string, V1Pod>())
         }
 
         const podName = pod.metadata!.name!
         if (!this.podsByNameByResourceName.get(resourceName)!.has(podName)) {
-            console.log(`pod ${podName} does not exist in podsByNameByResourceName, this is unexpected`)             
             return
         }
         this.podsByNameByResourceName.get(resourceName)!.delete(podName!)
@@ -207,14 +202,10 @@ export class ResourcePodHealthTracker<T extends IWatchable> extends EventE
     private _onPodModified(pod: V1Pod) {
         const resourceName = this.resourceMapper(pod)
         if (!this.podsByNameByResourceName.has(resourceName)) {
-            console.log(`resource ${resourceName} does not exist in podsByNameByResourceName, this is unexpected`)
             this.podsByNameByResourceName.set(resourceName, new Map<string, V1Pod>())
         }
 
         const podName = pod.metadata!.name
-        if (!this.podsByNameByResourceName.get(resourceName!)!.has(podName!)) {
-            console.log(`pod ${podName} does not exist in podsByNameByResourceName, this is unexpected`)
-        }
         this.podsByNameByResourceName.get(resourceName!)!.set(podName!, pod)
         this.emitRefresh(resourceName)
     }
@@ -230,8 +221,25 @@ export class WatcherView<T extends IWatchable> extends Komponent {
     protected visNetworkNodes: vis.DataSet<vis.Node>  = new vis.DataSet([])
     protected visNetworkEdges: vis.DataSet<vis.Edge> = new vis.DataSet([])
     protected visNetwork: vis.Network
+    // track the redraw interval for disabling it during destroy
     private redrawIntervalId: NodeJS.Timeout
+    // track if a disable timeout has been set, we'll be releasing if a redraw occurs before it's been processed
+    private disableTimeout: NodeJS.Timeout
     private redraw = false
+    private physicsConfig = {
+        physics: {
+            forceAtlas2Based: {
+              gravitationalConstant: -500,
+              centralGravity: 0.1,
+              springLength: 100,
+              damping: 1,
+            },
+            maxVelocity: 1000,
+            minVelocity: 1,
+            solver: "forceAtlas2Based",
+            timestep: 0.33,
+        },
+    }
 
     // adding nodes in batches improves visjs drawing performance
     private nodeUpdateQueue = new Array<vis.Node>()
@@ -243,21 +251,6 @@ export class WatcherView<T extends IWatchable> extends Komponent {
                 private healthTracker: IHealthTracker<T> = new DefaultHealthTracker<T>()) {
             super()
 
-            const physics = {
-                physics: {
-                    forceAtlas2Based: {
-                      gravitationalConstant: -500,
-                      centralGravity: 0.1,
-                      springLength: 100,
-                      damping: 1,
-                    },
-                    maxVelocity: 1000,
-                    minVelocity: 1,
-                    solver: "forceAtlas2Based",
-                    timestep: 0.33,
-                },
-            }
-
             // attempt to fit for the first 2 seconds
             let count = 0
             const intervalID = setInterval(() => {
@@ -268,50 +261,25 @@ export class WatcherView<T extends IWatchable> extends Komponent {
                 }
             }, 200)
 
-            // track if a disable timeout has been set, we'll be releasing it if so
-            let disableTimeout: NodeJS.Timeout
-
             // create an interval to check if we should redraw or not
-            this.redrawIntervalId = setInterval(() => {
-                // if redraw hasn' been request, bail
-                if (!this.redraw) {
-                    return
-                }
+            this.redrawIntervalId = setInterval(this.doRedraw.bind(this), 200)
 
-                // clear redraw flag
-                this.redraw = false
-
-                // if there's a pending disable then clear it, we're going to set a new one
-                if (disableTimeout) {
-                    clearTimeout(disableTimeout)
-                }
-
-                this.visNetworkNodes.update(this.nodeUpdateQueue)
-                this.nodeUpdateQueue = new Array<vis.Node>()
-                this.visNetworkEdges.update(this.edgeUpsertQueue)
-                this.edgeUpsertQueue = new Array<vis.Edge>()
-                this.visNetwork.setOptions(physics)
-                this.visNetwork.redraw()
-
-                // we don't want it to move stuff around forever, stop after 2 seconds
-                disableTimeout = setTimeout(() => {
-                    this.visNetwork.setOptions({physics: false})
-
-                }, 2000)
-            }, 200)
-
-            this.visNetwork = new vis.Network(this.container, { nodes: this.visNetworkNodes, edges: this.visNetworkEdges}, physics)
+            this.visNetwork = new vis.Network(this.container, { nodes: this.visNetworkNodes, edges: this.visNetworkEdges}, this.physicsConfig)
 
             this.visNetworkNodes.add({id: centerNodeId, label: centerNodeId, color: this.rootColour })
 
-            const resources = Array.from(this.watcher.getCached().values()).filter(filter)
+            const resources = Array.from(this.watcher.getCached().values())
             const nodes = new Array<vis.Node>()
             const edges = new Array<vis.Edge>()
             resources.forEach((resource) => {
-                const nodeID = resource.metadata!.name
                 const health = this.healthTracker.checkHealth(resource)
+                // filter this resource?
+                if (!this.filter(resource, health)) {
+                    return
+                }
+                const nodeID = resource.metadata!.name
                 const visNode: vis.Node = this.createNode(resource, health)
-                const visEdge: vis.Edge = { to: centerNodeId, from: nodeID }
+                const visEdge: vis.Edge = { to: centerNodeId, from: nodeID, id: nodeID }
                 this.nodeUpdateQueue.push(visNode)
                 this.edgeUpsertQueue.push(visEdge)
             })
@@ -330,11 +298,14 @@ export class WatcherView<T extends IWatchable> extends Komponent {
 
             this.healthTracker.on("refresh", (resource) => {
                 const health = this.healthTracker.checkHealth(resource)
-                if (!this.filter(resource)) {
+                if (!this.filter(resource, health)) {
+                    this.removeFromGraphIfExists(resource)
                     return
                 }
                 const visNode: vis.Node = this.createNode(resource, health)
+                const visEdge: vis.Edge = { to: centerNodeId, from: resource.metadata!.name, id: resource.metadata!.name }
                 this.nodeUpdateQueue.push(visNode)
+                this.edgeUpsertQueue.push(visEdge)
                 this.redraw = true
             })
     }
@@ -361,6 +332,34 @@ export class WatcherView<T extends IWatchable> extends Komponent {
         return { id: resource.metadata!.name, label: resource.metadata!.name, shape: "box", color: colour }
     }
 
+
+    private doRedraw() {
+        // if redraw hasn' been request, shortcircuit
+        if (!this.redraw) {
+            return
+        }
+
+        // clear redraw flag
+        this.redraw = false
+
+        // if there's a pending disable then clear it, we're going to set a new one
+        if (this.disableTimeout) {
+            clearTimeout(this.disableTimeout)
+        }
+
+        this.visNetworkNodes.update(this.nodeUpdateQueue)
+        this.nodeUpdateQueue = new Array<vis.Node>()
+        this.visNetworkEdges.update(this.edgeUpsertQueue)
+        this.edgeUpsertQueue = new Array<vis.Edge>()
+        this.visNetwork.setOptions(this.physicsConfig)
+        this.visNetwork.redraw()
+
+        // we don't want it to move stuff around forever, stop after 2 seconds
+        return setTimeout(() => {
+            this.visNetwork.setOptions({physics: false})
+        }, 2000)
+    }
+
     private registerListeners() {
         this.watcher.on("ADDED", this.onAdded.bind(this))
         this.watcher.on("DELETED", this.onDeleted.bind(this))
@@ -372,32 +371,50 @@ export class WatcherView<T extends IWatchable> extends Komponent {
     }
 
     private onAdded(resource: T) {
+        const health = this.healthTracker.checkHealth(resource)
         // is this a pod we're interested in?
-        if (!this.filter(resource)) {
+        if (!this.filter(resource, health)) {
+            this.removeFromGraphIfExists(resource)
             return
         }
+
         const nodeID = resource.metadata!.name!
         // The node sho
         if (this.visNetworkNodes.get(nodeID)) {
             console.log(`Warning, node alreaded added: ${nodeID}`)
         }
-        const health = this.healthTracker.checkHealth(resource)
+
         const visNode: vis.Node = this.createNode(resource, health)
-        const visEdge: vis.Edge = { to: this.centerNodeId, from: nodeID, length: this.calculateEdgeLength() }
+        const visEdge: vis.Edge = { to: this.centerNodeId, from: nodeID, length: this.calculateEdgeLength(), id: nodeID }
         this.nodeUpdateQueue.push(visNode)
         this.edgeUpsertQueue.push(visEdge)
         this.redraw = true
     }
 
-    private onDeleted(resource: T) {
-        // is this a pod we're interested in?
-        if (!this.filter(resource)) {
-            return
-        }
-        const nodeId = resource.metadata!.name!
-        this.visNetworkNodes.remove(nodeId)
-        this.visNetworkEdges.remove(nodeId)
+    private removeFromGraphIfExists(resource: T) {
+        // first we trigger a redraw so that the graph incoporates any pending updates
         this.redraw = true
+        this.doRedraw()
+
+        // now moreve nodes 
+        const nodeId = resource.metadata!.name!
+        const visEdge = this.visNetworkEdges.get(nodeId)
+        if (visEdge) {
+            console.log(`removing edge ${nodeId}`)
+            this.visNetworkEdges.remove(nodeId)
+            this.redraw = true
+        }
+        const visNode = this.visNetworkNodes.get(nodeId)
+        if (visNode) {
+            console.log(`removing node ${nodeId}`)
+            this.visNetworkNodes.remove(nodeId)
+            this.redraw = true
+        }
+        return
+    }
+
+     private onDeleted(resource: T) {
+        this.removeFromGraphIfExists(resource)
     }
 
     private calculateEdgeLength(): number | undefined {

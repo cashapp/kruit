@@ -1,4 +1,4 @@
-import { IWatcher, Kubernetes, newKubeConfig, PodView, PodWatcherView, WatchableEvents, Watcher, WatcherView, ResourcePodHealthTracker } from "kuitk"
+import { IWatcher, Kubernetes, newKubeConfig, PodView, PodWatcherView, WatchableEvents, Watcher, WatcherView, ResourcePodHealthTracker, HealthStatus } from "kuitk"
 import $ from "jquery"
 import { stringLiteral } from "@babel/types";
 import { V1Namespace } from '@kubernetes/client-node';
@@ -82,7 +82,10 @@ class NamespaceViewer {
             (pod: Kubernetes.V1Pod) => pod.metadata!.namespace!
         ) 
         const namespaceWatcherView = new WatcherView<Kubernetes.V1Namespace>(this.topContainer, this.clusterVisNodeId, this.namespaceWatcher,
-            (namespace: Kubernetes.V1Namespace) => true, healthTracker)
+            (namespace: Kubernetes.V1Namespace, health: HealthStatus) => { 
+                // ignore all happy resources
+                return health === "HAPPY" ? false : true
+            }, healthTracker)
 
         namespaceWatcherView.on("selected", (namespace) => {
             this.namespaceWatcher.removeAllWatchableEventListeners()
