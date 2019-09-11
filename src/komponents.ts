@@ -470,7 +470,7 @@ export class PodWatcherView extends WatcherView<V1Pod> {
             }
             this.previouslySelectedNodeId = podNodeId
             this.previouslySelectedChildrenNodeIds = []
-            pod.spec!.containers.forEach((container: V1Container) => {                
+            pod.spec!.containers.forEach((container: V1Container) => {
                 const containerName = container.name
                 let colour = ""
                 for (const status of pod.status.containerStatuses) {
