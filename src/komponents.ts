@@ -330,6 +330,9 @@ export class WatcherView<T extends IWatchable> extends Komponent {
 
             this.healthTracker.on("refresh", (resource) => {
                 const health = this.healthTracker.checkHealth(resource)
+                if (!this.filter(resource)) {
+                    return
+                }
                 const visNode: vis.Node = this.createNode(resource, health)
                 this.nodeUpdateQueue.push(visNode)
                 this.redraw = true
