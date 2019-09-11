@@ -80,8 +80,8 @@ class NodeViewer {
             //  PodToResourceMapper this maps pods to namespaces via the id above (the namespace name)
             (pod: Kubernetes.V1Pod) => pod.spec!.nodeName!
         ) 
-        const nodeWatcherView = new WatcherView<V1Node>(this.topContainer, this.clusterVisNodeId, this.nodeWatcher,
-            () => true)
+        const nodeWatcherView = new WatcherView<V1Node>(this.topContainer, this.clusterVisNodeId, 
+            this.nodeWatcher, (node, health) => true, healthTracker)
 
         nodeWatcherView.on("selected", (namespace) => {
             this.nodeWatcher.removeAllWatchableEventListeners()
