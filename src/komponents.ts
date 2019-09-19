@@ -108,7 +108,8 @@ export class ResourcePodHealthTracker<T extends IWatchable> extends EventE
         const podsByName = this.podsByNameByResourceName!.get(resourceName)!
         for (const [, pod] of podsByName) {
                 switch (pod.status!.phase) {
-                    case "Running" || "Succeeded":
+                    case "Running":
+                    case "Succeeded":
                         happy++
                         break
                     case "Pending":
