@@ -107,17 +107,17 @@ export class ResourcePodHealthTracker<T extends IWatchable> extends EventE
         let happy = 0, pending = 0, sad = 0
         const podsByName = this.podsByNameByResourceName!.get(resourceName)!
         for (const [, pod] of podsByName) {
-            switch (pod.status!.phase) {
-                case "Running" || "Succeeded":
-                    happy++
-                    break
-                case "Pending":
-                    pending++
-                    break
-                default:
-                    sad++
-            }
-        }
+                switch (pod.status!.phase) {
+                    case "Running" || "Succeeded":
+                        happy++
+                        break
+                    case "Pending":
+                        pending++
+                        break
+                    default:
+                        sad++
+                }
+            }
 
         if (sad > 0) {
             return "SAD"
@@ -272,7 +272,9 @@ export class WatcherView<T extends IWatchable> extends Komponent {
     constructor(private container: HTMLDivElement, private centerNodeId: string,
                 private watcher: IWatcher<T>,
                 private filter: Filter<T>,
-                private healthTracker: IHealthTracker<T> = new DefaultHealthTracker<T>()) {
+                private healthTracker: IHealthTracker<T> = new DefaultHealthTracker<T>(),
+                private includeEdges = false,
+                ) {
             super()
 
             // attempt to fit for the first 2 seconds
@@ -303,9 +305,11 @@ export class WatcherView<T extends IWatchable> extends Komponent {
                 }
                 const nodeID = resource.metadata!.name
                 const visNode: vis.Node = this.createNode(resource, health)
-                const visEdge: vis.Edge = { to: centerNodeId, from: nodeID, id: nodeID }
                 this.nodeUpdateQueue.push(visNode)
-                this.edgeUpsertQueue.push(visEdge)
+                if (this.includeEdges) {
+                    const visEdge: vis.Edge = { to: centerNodeId, from: nodeID, id: nodeID }
+                    this.edgeUpsertQueue.push(visEdge)
+                }
             })
             this.redraw = true
 
@@ -328,9 +332,11 @@ export class WatcherView<T extends IWatchable> extends Komponent {
                     return
                 }
                 const visNode: vis.Node = this.createNode(resource, health)
-                const visEdge: vis.Edge = { to: centerNodeId, from: resource.metadata!.name, id: resource.metadata!.name }
                 this.nodeUpdateQueue.push(visNode)
-                this.edgeUpsertQueue.push(visEdge)
+                if (this.includeEdges) {
+                    const visEdge: vis.Edge = { to: centerNodeId, from: resource.metadata!.name, id: resource.metadata!.name }
+                    this.edgeUpsertQueue.push(visEdge)
+                }
                 this.redraw = true
             })
     }
@@ -409,9 +415,12 @@ export class WatcherView<T extends IWatchable> extends Komponent {
         }
 
         const visNode: vis.Node = this.createNode(resource, health)
-        const visEdge: vis.Edge = { to: this.centerNodeId, from: nodeID, length: this.calculateEdgeLength(), id: nodeID }
         this.nodeUpdateQueue.push(visNode)
-        this.edgeUpsertQueue.push(visEdge)
+
+        if (this.includeEdges) {
+            const visEdge: vis.Edge = { to: this.centerNodeId, from: nodeID, length: this.calculateEdgeLength(), id: nodeID }
+            this.edgeUpsertQueue.push(visEdge)
+        }
         this.redraw = true
     }
 
@@ -485,7 +494,7 @@ export class PodWatcherView extends WatcherView<V1Pod> {
                     break
                 }
                 const containerNodeId = pod.metadata!.name! + "_" + containerName
-                this.visNetworkNodes.add({ id: containerNodeId , label: containerName, shape: "box", color: colour })
+                this.visNetworkNodes.add({ id: containerNodeId , label: containerName, shape: "box", color: colour })                
                 this.visNetworkEdges.add({ id: containerNodeId, to: podNodeId, from: containerNodeId , length: 50 + Math.floor(100)})
                 this.previouslySelectedChildrenNodeIds!.push(containerNodeId)
                 this.visNetwork.redraw()
