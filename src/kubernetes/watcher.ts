@@ -80,7 +80,8 @@ export class Watcher<T extends IWatchable> extends EventEmitter implements IWatc
             (eventType: WatchableEvents, obj: IWatchable) => {
                 const name = obj.metadata!.name
                 switch (eventType) {
-                    case "ADDED" || "MODIFIED":
+                    case "ADDED":
+                    case "MODIFIED":
                         self.cache.set(name, obj as T)
                         break
                     case "DELETED":
