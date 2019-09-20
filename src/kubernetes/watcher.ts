@@ -102,7 +102,7 @@ export class Watcher<T extends IWatchable> extends EventEmitter implements IWatc
         })
 
         // TODO error handling around the rest request failing
-        console.log(res)
+        //console.log(res)
     }
 
     public getCached(): Map<string, T> {

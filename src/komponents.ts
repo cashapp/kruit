@@ -421,10 +421,6 @@ export class WatcherView<T extends IWatchable> extends Komponent {
         }
 
         const nodeID = resource.metadata!.name!
-        // The node sho
-        if (this.visNetworkNodes.get(nodeID)) {
-            console.log(`Warning, node alreaded added: ${nodeID}`)
-        }
 
         const visNode: vis.Node = this.createNode(resource, health)
         this.nodeUpdateQueue.push(visNode)
@@ -445,13 +441,11 @@ export class WatcherView<T extends IWatchable> extends Komponent {
         const nodeId = resource.metadata!.name!
         const visEdge = this.visNetworkEdges.get(nodeId)
         if (visEdge) {
-            console.log(`removing edge ${nodeId}`)
             this.visNetworkEdges.remove(nodeId)
             this.redraw = true
         }
         const visNode = this.visNetworkNodes.get(nodeId)
         if (visNode) {
-            console.log(`removing node ${nodeId}`)
             this.visNetworkNodes.remove(nodeId)
             this.redraw = true
         }
