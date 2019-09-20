@@ -109,6 +109,17 @@ export class ResourcePodHealthTracker<T extends IWatchable> extends EventE
         for (const [, pod] of podsByName) {
                 switch (pod.status!.phase) {
                     case "Running":
+                        for (const conditions of pod.status.conditions) {
+                            if (conditions.type === "Ready") {
+                                if (conditions.status === "True") {
+                                    happy++
+                                } else {
+                                    sad++
+                                }
+                                break
+                            }
+                        }
+                        break
                     case "Succeeded":
                         happy++
                         break
@@ -483,6 +494,12 @@ export class PodWatcherView extends WatcherView<V1Pod> {
             pod.spec!.containers.forEach((container: V1Container) => {
                 const containerName = container.name
                 let colour = ""
+
+                if (!pod.status.containerStatuses) {
+                    colour = "#FF0000"
+                    return
+                }
+
                 for (const status of pod.status.containerStatuses) {
                     if (status.name !== containerName) {
                         continue
@@ -495,7 +512,7 @@ export class PodWatcherView extends WatcherView<V1Pod> {
                     break
                 }
                 const containerNodeId = pod.metadata!.name! + "_" + containerName
-                this.visNetworkNodes.add({ id: containerNodeId , label: containerName, shape: "box", color: colour })                
+                this.visNetworkNodes.add({ id: containerNodeId , label: containerName, shape: "box", color: colour })
                 this.visNetworkEdges.add({ id: containerNodeId, to: podNodeId, from: containerNodeId , length: 50 + Math.floor(100)})
                 this.previouslySelectedChildrenNodeIds!.push(containerNodeId)
                 this.visNetwork.redraw()
