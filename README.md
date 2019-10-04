@@ -3,7 +3,7 @@
 # Clone this repository
 git clone https://github.com/cashapp/kuitk
 # Go into the repository
-cd clustermuck 
+cd kuitk 
 # Install dependencies
 npm install
 # Run the app
