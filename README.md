@@ -1,4 +1,4 @@
-[Node View Screenshot](https://github.com/cashapp/kuitk/raw/master/src/docs/kruit_node_view.png)
+[Node View Screenshot](https://raw.githubusercontent.com/cashapp/kuitk/master/docs/kruit_node_view.png)
 
 
 
