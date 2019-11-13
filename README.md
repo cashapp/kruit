@@ -1,3 +1,7 @@
+[Node View Screenshot](https://github.com/cashapp/kuitk/raw/master/src/docs/kruit_node_view.png)
+
+
+
 ## Quick Start
 ```bash
 
