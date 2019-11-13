@@ -1,4 +1,4 @@
-## Under Construction:
+## Quick Start
 ```bash
 
 # Clone this repository
@@ -22,6 +22,7 @@ export KRUIT_PLUGIN_DIR="./sample_plugins"
 # Run the app
 npm start
 ```
+
 
 
 
