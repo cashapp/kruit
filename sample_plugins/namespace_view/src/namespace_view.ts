@@ -1,4 +1,4 @@
-import { IWatcher, Kubernetes, newKubeConfig, PodView, PodWatcherView, WatchableEvents, Watcher, WatcherView, ResourcePodHealthTracker, HealthStatus } from "kuitk"
+import { IWatcher, Kubernetes, newKubeConfig, PodView, PodWatcherView, WatchableEvents, Watcher, WatcherView, ResourcePodHealthTracker, HealthStatus } from "kruit"
 import $ from "jquery"
 import { stringLiteral } from "@babel/types";
 import { V1Namespace } from '@kubernetes/client-node';

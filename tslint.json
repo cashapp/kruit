@@ -12,7 +12,8 @@
     "type-literal-delimiter": false,
     "max-classes-per-file": false,
     "no-console": false,
-    "semicolon": [true, "never"]
+    "semicolon": [true, "never"],
+    "no-string-literal": false
   },
   "jsRules": {
     "max-line-length": {

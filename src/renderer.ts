@@ -9,17 +9,25 @@ async function loadPLugins() {
 
   const tabGroup = new TabGroup({})
 
-  // TODO need to support an override for plugin dir...
-  const base = `${os.homedir()}/.kuitk/plugins`
-  const pluginDirs = fs.readdirSync(base)
+  // look in ~/.kruit/plgins by default uless KRUIT_PLUGIN_DIR is set
+  const base = process.env["KRUIT_PLUGIN_DIR"] ? process.env["KRUIT_PLUGIN_DIR"] : `${os.homedir()}/.kruit/plugins`
+
+  const pluginDirPaths = fs.readdirSync(base)
   const clientFactory = new KubernetesClientFactory()
 
   let tabCount = 0
-  for (const dir of pluginDirs) {
+  for (const subPath of pluginDirPaths) {
+      const fullPath = `${base}/${subPath}`
+
+    // skip anything that isn't a dir
+      if (!fs.statSync(fullPath).isDirectory()) {
+        continue
+      }
+
       const tab = tabGroup.addTab({
         active: true,
         src: "./tab.html",
-        title: dir,
+        title: subPath,
         visible: true,
         webviewAttributes: {
           enableremotemodule: true,
@@ -30,7 +38,7 @@ async function loadPLugins() {
         const webview: WebviewTag = $("webview").get(tabCount++) as WebviewTag
         webview.addEventListener("dom-ready", () => {
           webview.openDevTools()
-          const module = `${base}/${dir}`
+          const module = `${base}/${subPath}`
           webview.executeJavaScript("launchPlugin('" + module + "')")
           resolve()
         })

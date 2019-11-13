@@ -1,5 +1,5 @@
 import { V1Node, V1Pod } from "@kubernetes/client-node"
-import { IWatcher, Kubernetes, newKubeConfig, PodView, PodWatcherView, WatchableEvents, Watcher, WatcherView, ResourcePodHealthTracker } from "kuitk"
+import { IWatcher, Kubernetes, newKubeConfig, PodView, PodWatcherView, WatchableEvents, Watcher, WatcherView, ResourcePodHealthTracker } from "kruit"
 import $ from "jquery"
 
 
