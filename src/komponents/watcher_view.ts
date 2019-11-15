@@ -4,7 +4,7 @@ import { Komponent } from "./komponents"
 export type Filter<T> = (resource: T, health: HealthStatus) => boolean
 export type WatcherViewEvent = "selected" | "back"
 import {  V1Container, V1Pod } from "@kubernetes/client-node"
-import * as vis from "vis"
+import * as vis from "vis-network"
 
 
 export interface IWatcherView<T> {

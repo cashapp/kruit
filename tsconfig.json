@@ -1,7 +1,8 @@
 {
   "compilerOptions": {
-      "module": "commonjs",
-      "declaration": true,
+     "module": "commonjs",
+    "declaration": true,
+    "allowSyntheticDefaultImports": true,
     "noImplicitAny": true,
     "sourceMap": false,
     "outDir": "dist",

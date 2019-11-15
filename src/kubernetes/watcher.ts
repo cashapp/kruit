@@ -2,7 +2,7 @@ import * as k8s from "@kubernetes/client-node"
 import { V1ObjectMeta } from "@kubernetes/client-node"
 import { EventEmitter } from "events"
 import { now } from "moment";
-import moment = require("moment");
+import * as moment from "moment"
 
 
 // IWatchable describes the structure of kubernetes resource classes. Some of those resources can be watched.

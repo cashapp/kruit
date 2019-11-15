@@ -4,7 +4,7 @@
 import * as k8s from "@kubernetes/client-node"
 import * as os from "os"
 import * as process from "process"
-import * as vis from "vis"
+import * as vis from "vis-network"
 
 // TODO(gflarity) this is a hack that can go away after 0.10.3 is released.
 import * as shelljs from "shelljs"

@@ -27,7 +27,9 @@ export KRUIT_PLUGIN_DIR="./sample_plugins"
 npm start
 ```
 
+## Writing Plugins
 
+Writing a new plugin for kruit is easy. The best way to starty is by looking at one of our well documented [sample](https://github.com/cashapp/kuitk/blob/master/sample_plugins/node_view/src/node_view.ts) [plugins](https://github.com/cashapp/kuitk/blob/master/sample_plugins/namespace_view/src/namespace_view.ts). 
 
 
 ## License
