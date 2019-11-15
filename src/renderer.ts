@@ -9,7 +9,7 @@ async function loadPLugins() {
 
   const tabGroup = new TabGroup({})
 
-  // look in ~/.kruit/plgins by default uless KRUIT_PLUGIN_DIR is set
+  // look in ~/.kruit/plgins by default unless KRUIT_PLUGIN_DIR is set
   const base = process.env["KRUIT_PLUGIN_DIR"] ? process.env["KRUIT_PLUGIN_DIR"] : `${os.homedir()}/.kruit/plugins`
 
   const pluginDirPaths = fs.readdirSync(base)
@@ -17,39 +17,39 @@ async function loadPLugins() {
 
   let tabCount = 0
   for (const subPath of pluginDirPaths) {
-      const fullPath = `${base}/${subPath}`
+    const fullPath = `${base}/${subPath}`
 
     // skip anything that isn't a dir
-      if (!fs.statSync(fullPath).isDirectory()) {
-        continue
-      }
+    if (!fs.statSync(fullPath).isDirectory()) {
+      continue
+    }
 
-      const tab = tabGroup.addTab({
-        active: true,
-        src: "./tab.html",
-        title: subPath,
-        visible: true,
-        webviewAttributes: {
-          enableremotemodule: true,
-          nodeintegration: true,
-        },
+    const tab = tabGroup.addTab({
+      active: true,
+      src: "./tab.html",
+      title: subPath,
+      visible: true,
+      webviewAttributes: {
+        enableremotemodule: true,
+        nodeintegration: true,
+      },
+    })
+    await new Promise((resolve, reject) => {
+      const webview: WebviewTag = $("webview").get(tabCount++) as WebviewTag
+      webview.addEventListener("dom-ready", () => {
+        webview.openDevTools()
+        const module = `${base}/${subPath}`
+        webview.executeJavaScript("launchPlugin('" + module + "')")
+        resolve()
       })
-      await new Promise((resolve, reject) => {
-        const webview: WebviewTag = $("webview").get(tabCount++) as WebviewTag
-        webview.addEventListener("dom-ready", () => {
-          webview.openDevTools()
-          const module = `${base}/${subPath}`
-          webview.executeJavaScript("launchPlugin('" + module + "')")
-          resolve()
-        })
-      })
+    })
 
-      // NB(gflarity) wait a second here so that the UI can settle for this tab. This is is a
-      // hack for for the old version of vis network the samples are currently using and it
-      // should be removed later.
-      await new Promise((resolve) => {
-        setTimeout(resolve, 1000)
-      })
+    // NB(gflarity) wait a second here so that the UI can settle for this tab. This is is a
+    // hack for for the old version of vis network the samples are currently using and it
+    // should be removed later.
+    await new Promise((resolve) => {
+      setTimeout(resolve, 1000)
+    })
   }
 }
 
